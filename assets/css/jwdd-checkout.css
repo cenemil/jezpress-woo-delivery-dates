@@ -1,0 +1,33 @@
+/**
+ * JWDD Checkout Styles
+ */
+
+/* ---- Section wrapper ---- */
+#jwdd-delivery-dates-wrap {
+	margin-bottom: 24px;
+}
+
+#jwdd-delivery-dates-wrap h3 {
+	font-size: 18px;
+	margin-bottom: 12px;
+}
+
+/* ---- No dates message ---- */
+.jwdd-no-dates {
+	color: #6c757d;
+	font-style: italic;
+}
+
+/* ---- Select fields ---- */
+#jwdd_delivery_date,
+#jwdd_time_slot_id,
+#jwdd_carrier_id {
+	width: 100%;
+	max-width: 400px;
+}
+
+/* ---- Disabled time slot state ---- */
+#jwdd_time_slot_id:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
