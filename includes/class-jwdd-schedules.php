@@ -2,8 +2,14 @@
 /**
  * JWDD Schedules
  *
- * Manages delivery schedules (date + time slot entries): CRUD, recurring
- * generation, and data accessors used by the checkout.
+ * Manages delivery schedules: CRUD for manually-created slot overrides, and
+ * the data accessors used by the checkout.
+ *
+ * Available dates and time slots are derived dynamically from active schedule
+ * definitions (days_of_week config) + the max_future_days setting. Slot rows
+ * in {prefix}jwdd_schedules are created on-demand the first time a customer
+ * loads time slots for a date, so order meta always references a real row ID
+ * and capacity (max_orders / booked_count) can be tracked per-slot.
  *
  * @package Jezpress_Woo_Delivery_Dates
  * @since   1.0.0
@@ -19,11 +25,10 @@ class JWDD_Schedules {
 	 * Constructor — registers AJAX hooks.
 	 */
 	public function __construct() {
-		add_action( 'wp_ajax_jwdd_save_schedule',        array( $this, 'ajax_save_schedule' ) );
-		add_action( 'wp_ajax_jwdd_delete_schedule',      array( $this, 'ajax_delete_schedule' ) );
-		add_action( 'wp_ajax_jwdd_get_schedules',        array( $this, 'ajax_get_schedules' ) );
-		add_action( 'wp_ajax_jwdd_generate_recurring',   array( $this, 'ajax_generate_recurring' ) );
-		add_action( 'wp_ajax_jwdd_get_time_slots',       array( $this, 'ajax_get_time_slots' ) );
+		add_action( 'wp_ajax_jwdd_save_schedule',         array( $this, 'ajax_save_schedule' ) );
+		add_action( 'wp_ajax_jwdd_delete_schedule',       array( $this, 'ajax_delete_schedule' ) );
+		add_action( 'wp_ajax_jwdd_get_schedules',         array( $this, 'ajax_get_schedules' ) );
+		add_action( 'wp_ajax_jwdd_get_time_slots',        array( $this, 'ajax_get_time_slots' ) );
 		add_action( 'wp_ajax_nopriv_jwdd_get_time_slots', array( $this, 'ajax_get_time_slots' ) );
 	}
 
@@ -32,77 +37,166 @@ class JWDD_Schedules {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Get distinct available delivery dates within the booking window.
+	 * Get available delivery dates within the booking window.
 	 *
-	 * @return array Array of date strings in 'Y-m-d' format.
+	 * Dates are computed from active schedule definitions' days_of_week config
+	 * and the max_future_days setting. No pre-generated slot rows required.
+	 *
+	 * @param int[]|null $carrier_ids Carrier IDs to filter by, or null for no filter.
+	 *                                An empty array means no carriers matched — returns empty.
+	 * @return string[] Array of date strings in 'Y-m-d' format.
 	 */
-	public static function get_available_dates() {
-		global $wpdb;
+	public static function get_available_dates( $carrier_ids = null ) {
+		if ( is_array( $carrier_ids ) && empty( $carrier_ids ) ) {
+			return array();
+		}
 
-		$settings    = get_option( 'jwdd_settings', array() );
-		$cutoff_days = isset( $settings['cutoff_days'] ) ? absint( $settings['cutoff_days'] ) : 1;
-		$max_days    = isset( $settings['max_future_days'] ) ? absint( $settings['max_future_days'] ) : 30;
+		$settings = get_option( 'jwdd_settings', array() );
+		$max_days = isset( $settings['max_future_days'] ) ? absint( $settings['max_future_days'] ) : 30;
 
-		$min_date = gmdate( 'Y-m-d', strtotime( "+{$cutoff_days} days" ) );
-		$max_date = gmdate( 'Y-m-d', strtotime( "+{$max_days} days" ) );
+		// Get active schedule defs, optionally filtered by carrier.
+		$defs = self::get_active_defs( $carrier_ids );
+		if ( empty( $defs ) ) {
+			return array();
+		}
 
-		$table = JWDD_DB::schedules_table();
+		// Build the set of days-of-week (0=Sun … 6=Sat) that have at least one slot.
+		$active_dows = array();
+		foreach ( $defs as $def ) {
+			$days = json_decode( $def->days_of_week, true ) ?: array();
+			foreach ( $days as $d ) {
+				if ( is_array( $d ) && isset( $d['day'] ) && ! empty( $d['slots'] ) ) {
+					$active_dows[ (int) $d['day'] ] = true;
+				}
+			}
+		}
 
-		$rows = $wpdb->get_col( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			"SELECT DISTINCT schedule_date
-			 FROM {$table}
-			 WHERE is_active = 1
-			   AND schedule_date >= %s
-			   AND schedule_date <= %s
-			   AND (max_orders = 0 OR booked_count < max_orders)
-			 ORDER BY schedule_date ASC",
-			$min_date,
-			$max_date
-		) );
+		if ( empty( $active_dows ) ) {
+			return array();
+		}
 
-		return $rows ? $rows : array();
+		// Walk the date window and collect matching dates.
+		$dates    = array();
+		$ts_start = strtotime( '+1 day' );
+		$ts_end   = strtotime( "+{$max_days} days" );
+		$current  = $ts_start;
+
+		while ( $current <= $ts_end ) {
+			$dow = (int) gmdate( 'w', $current );
+			if ( isset( $active_dows[ $dow ] ) ) {
+				$dates[] = gmdate( 'Y-m-d', $current );
+			}
+			$current = strtotime( '+1 day', $current );
+		}
+
+		return $dates;
 	}
 
 	/**
 	 * Get available time slots for a given date.
 	 *
-	 * @param string   $date       Date string 'Y-m-d'.
-	 * @param int|null $carrier_id Optional carrier filter.
-	 * @return array
+	 * Reads active schedule definitions for the day-of-week of $date. For each
+	 * slot in the definition, a row is created on-demand in {prefix}jwdd_schedules
+	 * if one does not already exist (keyed by schedule_def_id + schedule_date +
+	 * start_time). This ensures order meta always stores a real row ID and
+	 * capacity limits are tracked correctly.
+	 *
+	 * @param string     $date        Date string 'Y-m-d'.
+	 * @param int[]|null $carrier_ids Carrier IDs to filter by, or null for no filter.
+	 * @return array Array of slot row objects (with carrier_name property).
 	 */
-	public static function get_slots_for_date( $date, $carrier_id = null ) {
+	public static function get_slots_for_date( $date, $carrier_ids = null ) {
 		global $wpdb;
 
-		$table          = JWDD_DB::schedules_table();
-		$carriers_table = JWDD_DB::carriers_table();
-
-		if ( $carrier_id ) {
-			$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				"SELECT s.*, c.name AS carrier_name
-				 FROM {$table} s
-				 LEFT JOIN {$carriers_table} c ON c.id = s.carrier_id
-				 WHERE s.is_active = 1
-				   AND s.schedule_date = %s
-				   AND s.carrier_id = %d
-				   AND (s.max_orders = 0 OR s.booked_count < s.max_orders)
-				 ORDER BY s.start_time ASC",
-				$date,
-				absint( $carrier_id )
-			) );
-		} else {
-			$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-				"SELECT s.*, c.name AS carrier_name
-				 FROM {$table} s
-				 LEFT JOIN {$carriers_table} c ON c.id = s.carrier_id
-				 WHERE s.is_active = 1
-				   AND s.schedule_date = %s
-				   AND (s.max_orders = 0 OR s.booked_count < s.max_orders)
-				 ORDER BY s.start_time ASC",
-				$date
-			) );
+		if ( is_array( $carrier_ids ) && empty( $carrier_ids ) ) {
+			return array();
 		}
 
-		return $rows ? $rows : array();
+		$dow  = (int) gmdate( 'w', strtotime( $date ) ); // 0=Sun … 6=Sat
+		$defs = self::get_active_defs( $carrier_ids );
+
+		if ( empty( $defs ) ) {
+			return array();
+		}
+
+		$table = JWDD_DB::schedules_table();
+		$now   = current_time( 'mysql' );
+		$slots = array();
+
+		foreach ( $defs as $def ) {
+			$days = json_decode( $def->days_of_week, true ) ?: array();
+
+			foreach ( $days as $d ) {
+				if ( ! is_array( $d ) || (int) $d['day'] !== $dow ) {
+					continue;
+				}
+				if ( empty( $d['slots'] ) ) {
+					continue;
+				}
+
+				foreach ( $d['slots'] as $slot_cfg ) {
+					if ( empty( $slot_cfg['start'] ) || empty( $slot_cfg['end'] ) ) {
+						continue;
+					}
+
+					$start = $slot_cfg['start'];
+					$end   = $slot_cfg['end'];
+					$label = 'From ' . gmdate( 'g:ia', strtotime( $start ) ) . ' to ' . gmdate( 'g:ia', strtotime( $end ) );
+
+					// Look up (or create) the slot row for this def + date + start_time.
+					$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+						"SELECT * FROM {$table} WHERE schedule_def_id = %d AND schedule_date = %s AND start_time = %s LIMIT 1",
+						(int) $def->id, $date, $start
+					) );
+
+					if ( ! $row ) {
+						$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+							$table,
+							array(
+								'schedule_def_id' => (int) $def->id,
+								'carrier_id'      => (int) $def->carrier_id,
+								'schedule_date'   => $date,
+								'start_time'      => $start,
+								'end_time'        => $end,
+								'label'           => $label,
+								'max_orders'      => 0,
+								'booked_count'    => 0,
+								'is_active'       => 1,
+								'created_at'      => $now,
+							),
+							array( '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s' )
+						);
+						$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+							"SELECT * FROM {$table} WHERE id = %d",
+							$wpdb->insert_id
+						) );
+					} elseif ( $row->label !== $label ) {
+						// Keep label in sync if the slot definition was updated.
+						$wpdb->update( $table, array( 'label' => $label ), array( 'id' => $row->id ), array( '%s' ), array( '%d' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+						$row->label = $label;
+					}
+
+					if ( ! $row ) {
+						continue;
+					}
+
+					// Skip if this slot is fully booked.
+					if ( (int) $row->max_orders > 0 && (int) $row->booked_count >= (int) $row->max_orders ) {
+						continue;
+					}
+
+					$row->carrier_name = $def->carrier_name ?? '';
+					$slots[]           = $row;
+				}
+			}
+		}
+
+		// Sort by start_time ascending.
+		usort( $slots, function ( $a, $b ) {
+			return strcmp( $a->start_time, $b->start_time );
+		} );
+
+		return $slots;
 	}
 
 	/**
@@ -133,6 +227,46 @@ class JWDD_Schedules {
 			"UPDATE {$table} SET booked_count = GREATEST(0, booked_count - 1) WHERE id = %d",
 			absint( $schedule_id )
 		) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Internal helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return active schedule definitions, optionally filtered by carrier.
+	 *
+	 * @param int[]|null $carrier_ids Carrier IDs to include (plus carrier_id=0), or null for all.
+	 * @return array
+	 */
+	private static function get_active_defs( $carrier_ids = null ) {
+		global $wpdb;
+
+		$defs_table     = JWDD_DB::schedule_defs_table();
+		$carriers_table = JWDD_DB::carriers_table();
+
+		$carrier_clause = '';
+		$params         = array();
+
+		if ( is_array( $carrier_ids ) ) {
+			$placeholders   = implode( ',', array_fill( 0, count( $carrier_ids ), '%d' ) );
+			$carrier_clause = "AND (d.carrier_id = 0 OR d.carrier_id IN ({$placeholders}))";
+			$params         = array_map( 'intval', $carrier_ids );
+		}
+
+		$query = "SELECT d.*, c.name AS carrier_name
+		          FROM {$defs_table} d
+		          LEFT JOIN {$carriers_table} c ON c.id = d.carrier_id
+		          WHERE d.is_active = 1
+		          {$carrier_clause}
+		          ORDER BY d.name ASC";
+
+		if ( ! empty( $params ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return $wpdb->get_results( $wpdb->prepare( $query, $params ) ) ?: array();
+		}
+
+		return $wpdb->get_results( $query ) ?: array(); // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	// -------------------------------------------------------------------------
@@ -168,9 +302,8 @@ class JWDD_Schedules {
 			wp_send_json_error( array( 'message' => __( 'Start and end times are required.', 'jezpress-woo-delivery-dates' ) ) );
 		}
 
-		// Auto-generate label if not provided.
 		if ( empty( $label ) ) {
-			$label = gmdate( 'g:ia', strtotime( $start ) ) . ' – ' . gmdate( 'g:ia', strtotime( $end ) );
+			$label = 'From ' . gmdate( 'g:ia', strtotime( $start ) ) . ' to ' . gmdate( 'g:ia', strtotime( $end ) );
 		}
 
 		global $wpdb;
@@ -277,6 +410,7 @@ class JWDD_Schedules {
 		$carrier_filter = isset( $_POST['carrier_id'] ) ? absint( $_POST['carrier_id'] ) : 0;
 		$date_from      = isset( $_POST['date_from'] ) ? sanitize_text_field( wp_unslash( $_POST['date_from'] ) ) : '';
 		$date_to        = isset( $_POST['date_to'] ) ? sanitize_text_field( wp_unslash( $_POST['date_to'] ) ) : '';
+		$def_id_filter  = isset( $_POST['def_id'] ) ? absint( $_POST['def_id'] ) : 0;
 
 		$where  = array( '1=1' );
 		$params = array();
@@ -296,12 +430,17 @@ class JWDD_Schedules {
 			$params[] = $date_to;
 		}
 
+		if ( $def_id_filter ) {
+			$where[]  = 's.schedule_def_id = %d';
+			$params[] = $def_id_filter;
+		}
+
 		$where_sql = implode( ' AND ', $where );
 		$query     = "SELECT s.*, c.name AS carrier_name
-					  FROM {$table} s
-					  LEFT JOIN {$carriers_table} c ON c.id = s.carrier_id
-					  WHERE {$where_sql}
-					  ORDER BY s.schedule_date ASC, s.start_time ASC";
+		              FROM {$table} s
+		              LEFT JOIN {$carriers_table} c ON c.id = s.carrier_id
+		              WHERE {$where_sql}
+		              ORDER BY s.schedule_date ASC, s.start_time ASC";
 
 		if ( ! empty( $params ) ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
@@ -314,88 +453,6 @@ class JWDD_Schedules {
 	}
 
 	/**
-	 * AJAX: Bulk-generate recurring schedule slots for a date range.
-	 *
-	 * Accepts: carrier_id, start_date, end_date, days_of_week (array of 0-6),
-	 *          start_time, end_time, label, max_orders.
-	 *
-	 * @return void
-	 */
-	public function ajax_generate_recurring() {
-		check_ajax_referer( 'jwdd_admin_nonce', 'nonce' );
-
-		if ( ! current_user_can( 'manage_woocommerce' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Permission denied.', 'jezpress-woo-delivery-dates' ) ), 403 );
-		}
-
-		$carrier_id  = isset( $_POST['carrier_id'] ) ? absint( $_POST['carrier_id'] ) : 0;
-		$start_date  = isset( $_POST['start_date'] ) ? sanitize_text_field( wp_unslash( $_POST['start_date'] ) ) : '';
-		$end_date    = isset( $_POST['end_date'] ) ? sanitize_text_field( wp_unslash( $_POST['end_date'] ) ) : '';
-		$days        = isset( $_POST['days_of_week'] ) && is_array( $_POST['days_of_week'] )
-			? array_map( 'absint', $_POST['days_of_week'] )
-			: array();
-		$start_time  = isset( $_POST['start_time'] ) ? sanitize_text_field( wp_unslash( $_POST['start_time'] ) ) : '';
-		$end_time    = isset( $_POST['end_time'] ) ? sanitize_text_field( wp_unslash( $_POST['end_time'] ) ) : '';
-		$label       = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( $_POST['label'] ) ) : '';
-		$max_orders  = isset( $_POST['max_orders'] ) ? absint( $_POST['max_orders'] ) : 0;
-
-		if ( ! $start_date || ! $end_date || empty( $days ) || ! $start_time || ! $end_time ) {
-			wp_send_json_error( array( 'message' => __( 'Start date, end date, days of week, and times are required.', 'jezpress-woo-delivery-dates' ) ) );
-		}
-
-		$ts_start = strtotime( $start_date );
-		$ts_end   = strtotime( $end_date );
-
-		if ( ! $ts_start || ! $ts_end || $ts_start > $ts_end ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid date range.', 'jezpress-woo-delivery-dates' ) ) );
-		}
-
-		if ( empty( $label ) ) {
-			$label = gmdate( 'g:ia', strtotime( $start_time ) ) . ' – ' . gmdate( 'g:ia', strtotime( $end_time ) );
-		}
-
-		global $wpdb;
-		$table   = JWDD_DB::schedules_table();
-		$now     = current_time( 'mysql' );
-		$created = 0;
-
-		$current = $ts_start;
-		while ( $current <= $ts_end ) {
-			$dow = (int) gmdate( 'w', $current ); // 0=Sunday, 6=Saturday
-
-			if ( in_array( $dow, $days, true ) ) {
-				$date = gmdate( 'Y-m-d', $current );
-
-				$wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-					$table,
-					array(
-						'carrier_id'    => $carrier_id,
-						'schedule_date' => $date,
-						'start_time'    => $start_time,
-						'end_time'      => $end_time,
-						'label'         => $label,
-						'max_orders'    => $max_orders,
-						'booked_count'  => 0,
-						'is_active'     => 1,
-						'created_at'    => $now,
-					),
-					array( '%d', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s' )
-				);
-
-				$created++;
-			}
-
-			$current = strtotime( '+1 day', $current );
-		}
-
-		/* translators: %d: number of schedule slots created */
-		wp_send_json_success( array(
-			'message' => sprintf( _n( '%d schedule slot created.', '%d schedule slots created.', $created, 'jezpress-woo-delivery-dates' ), $created ),
-			'created' => $created,
-		) );
-	}
-
-	/**
 	 * AJAX: Return available time slots for a given date (public — used by checkout JS).
 	 *
 	 * @return void
@@ -403,14 +460,14 @@ class JWDD_Schedules {
 	public function ajax_get_time_slots() {
 		check_ajax_referer( 'jwdd_checkout_nonce', 'nonce' );
 
-		$date       = isset( $_POST['date'] ) ? sanitize_text_field( wp_unslash( $_POST['date'] ) ) : '';
-		$carrier_id = isset( $_POST['carrier_id'] ) ? absint( $_POST['carrier_id'] ) : null;
+		$date = isset( $_POST['date'] ) ? sanitize_text_field( wp_unslash( $_POST['date'] ) ) : '';
 
 		if ( empty( $date ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid date.', 'jezpress-woo-delivery-dates' ) ) );
 		}
 
-		$slots = self::get_slots_for_date( $date, $carrier_id );
+		$carrier_ids = JWDD_Checkout::get_applicable_carrier_ids();
+		$slots       = self::get_slots_for_date( $date, $carrier_ids );
 
 		$formatted = array();
 		foreach ( $slots as $slot ) {
@@ -421,7 +478,6 @@ class JWDD_Schedules {
 				'carrier_id'   => (int) $slot->carrier_id,
 				'start_time'   => $slot->start_time,
 				'end_time'     => $slot->end_time,
-				'available'    => $slot->max_orders === '0' ? true : ( (int) $slot->booked_count < (int) $slot->max_orders ),
 			);
 		}
 

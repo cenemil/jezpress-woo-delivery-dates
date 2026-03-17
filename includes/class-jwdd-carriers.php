@@ -91,6 +91,24 @@ class JWDD_Carriers {
 		$is_active   = isset( $_POST['is_active'] ) ? (int) $_POST['is_active'] : 1;
 		$sort_order  = isset( $_POST['sort_order'] ) ? absint( $_POST['sort_order'] ) : 0;
 
+		// shipping_zones: JSON array of {zone_id, est_days} objects.
+		$raw_zones        = isset( $_POST['shipping_zones_json'] ) ? wp_unslash( $_POST['shipping_zones_json'] ) : '[]'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+		$zones_arr        = json_decode( $raw_zones, true );
+		if ( ! is_array( $zones_arr ) ) {
+			$zones_arr = array();
+		}
+		$sanitized_zones = array();
+		foreach ( $zones_arr as $z ) {
+			if ( ! is_array( $z ) ) continue;
+			$est = isset( $z['est_days'] ) ? sanitize_text_field( $z['est_days'] ) : '';
+			if ( '' === $est ) continue;
+			$sanitized_zones[] = array(
+				'zone_id'  => absint( $z['zone_id'] ?? 0 ),
+				'est_days' => $est,
+			);
+		}
+		$shipping_zones_json = wp_json_encode( $sanitized_zones );
+
 		if ( empty( $name ) ) {
 			wp_send_json_error( array( 'message' => __( 'Carrier name is required.', 'jezpress-woo-delivery-dates' ) ) );
 		}
@@ -103,15 +121,16 @@ class JWDD_Carriers {
 			$result = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 				$table,
 				array(
-					'name'        => $name,
-					'code'        => $code,
-					'description' => $description,
-					'is_active'   => $is_active,
-					'sort_order'  => $sort_order,
-					'updated_at'  => $now,
+					'name'           => $name,
+					'code'           => $code,
+					'description'    => $description,
+					'is_active'      => $is_active,
+					'sort_order'     => $sort_order,
+					'shipping_zones' => $shipping_zones_json,
+					'updated_at'     => $now,
 				),
 				array( 'id' => $id ),
-				array( '%s', '%s', '%s', '%d', '%d', '%s' ),
+				array( '%s', '%s', '%s', '%d', '%d', '%s', '%s' ),
 				array( '%d' )
 			);
 
@@ -128,15 +147,16 @@ class JWDD_Carriers {
 		$result = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$table,
 			array(
-				'name'        => $name,
-				'code'        => $code,
-				'description' => $description,
-				'is_active'   => $is_active,
-				'sort_order'  => $sort_order,
-				'created_at'  => $now,
-				'updated_at'  => $now,
+				'name'           => $name,
+				'code'           => $code,
+				'description'    => $description,
+				'is_active'      => $is_active,
+				'sort_order'     => $sort_order,
+				'shipping_zones' => $shipping_zones_json,
+				'created_at'     => $now,
+				'updated_at'     => $now,
 			),
-			array( '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s' )
 		);
 
 		if ( ! $result ) {

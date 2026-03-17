@@ -17,7 +17,7 @@ class JWDD_DB {
 	/**
 	 * Current DB schema version. Increment when table structure changes.
 	 */
-	const DB_VERSION = 1;
+	const DB_VERSION = 4;
 
 	/**
 	 * Create or upgrade custom tables. Safe to call repeatedly (uses dbDelta).
@@ -39,6 +39,7 @@ class JWDD_DB {
 			description text NOT NULL DEFAULT '',
 			is_active tinyint(1) NOT NULL DEFAULT 1,
 			sort_order int(11) NOT NULL DEFAULT 0,
+			shipping_zones text NOT NULL DEFAULT '',
 			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY (id),
@@ -50,6 +51,7 @@ class JWDD_DB {
 		$sql_schedules = "CREATE TABLE {$wpdb->prefix}jwdd_schedules (
 			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			carrier_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			schedule_def_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
 			schedule_date date NOT NULL,
 			start_time time NOT NULL,
 			end_time time NOT NULL,
@@ -60,12 +62,27 @@ class JWDD_DB {
 			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 			PRIMARY KEY (id),
 			KEY carrier_id (carrier_id),
+			KEY schedule_def_id (schedule_def_id),
 			KEY schedule_date (schedule_date),
+			KEY is_active (is_active)
+		) $charset_collate;";
+
+		// Schedule definitions (named recurring delivery patterns).
+		$sql_schedule_defs = "CREATE TABLE {$wpdb->prefix}jwdd_schedule_defs (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			name varchar(100) NOT NULL DEFAULT '',
+			carrier_id bigint(20) UNSIGNED NOT NULL DEFAULT 0,
+			days_of_week text NOT NULL,
+			is_active tinyint(1) NOT NULL DEFAULT 1,
+			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			PRIMARY KEY (id),
 			KEY is_active (is_active)
 		) $charset_collate;";
 
 		dbDelta( $sql_carriers );
 		dbDelta( $sql_schedules );
+		dbDelta( $sql_schedule_defs );
 
 		update_option( 'jwdd_db_version', self::DB_VERSION );
 	}
@@ -88,5 +105,15 @@ class JWDD_DB {
 	public static function schedules_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'jwdd_schedules';
+	}
+
+	/**
+	 * Get the schedule definitions table name.
+	 *
+	 * @return string
+	 */
+	public static function schedule_defs_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwdd_schedule_defs';
 	}
 }

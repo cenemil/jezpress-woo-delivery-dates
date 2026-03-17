@@ -28,15 +28,87 @@ class JWDD_Checkout {
 			return;
 		}
 
-		add_action( 'wp_enqueue_scripts',                array( $this, 'enqueue_scripts' ) );
-		add_action( 'woocommerce_before_order_notes',    array( $this, 'render_fields' ) );
-		add_action( 'woocommerce_checkout_process',      array( $this, 'validate_fields' ) );
-		add_action( 'woocommerce_checkout_create_order', array( $this, 'save_to_order' ), 10, 2 );
-		add_action( 'woocommerce_checkout_order_created', array( $this, 'on_order_created' ) );
+		add_action( 'wp_enqueue_scripts',                        array( $this, 'enqueue_scripts' ) );
+		add_action( 'woocommerce_before_order_notes',            array( $this, 'render_fields' ) );
+		add_action( 'woocommerce_checkout_process',              array( $this, 'validate_fields' ) );
+		add_action( 'woocommerce_checkout_create_order',         array( $this, 'save_to_order' ), 10, 2 );
+		add_action( 'woocommerce_checkout_order_created',        array( $this, 'on_order_created' ) );
+		add_action( 'wp_ajax_jwdd_get_available_dates',          array( $this, 'ajax_get_available_dates' ) );
+		add_action( 'wp_ajax_nopriv_jwdd_get_available_dates',   array( $this, 'ajax_get_available_dates' ) );
 
 		// Decrement booked count when an order is cancelled or refunded.
 		add_action( 'woocommerce_order_status_cancelled', array( $this, 'on_order_cancelled' ) );
 		add_action( 'woocommerce_order_status_refunded',  array( $this, 'on_order_cancelled' ) );
+	}
+
+	/**
+	 * Resolve the carrier IDs available to the current customer based on their
+	 * WooCommerce shipping zone.
+	 *
+	 * Returns null  → no zone could be determined; show all schedules.
+	 * Returns array → only schedules for these carrier IDs (plus unassigned, carrier_id=0).
+	 * Returns []    → zone matched but no carriers cover it; show nothing.
+	 *
+	 * @return int[]|null
+	 */
+	public static function get_applicable_carrier_ids() {
+		if ( ! class_exists( 'WC_Shipping_Zones' ) || ! WC()->customer ) {
+			return null;
+		}
+
+		// Prefer the already-calculated shipping packages; fall back to customer address.
+		$packages = WC()->shipping() ? WC()->shipping()->get_packages() : array();
+
+		if ( ! empty( $packages ) ) {
+			$package = $packages[0];
+		} else {
+			$package = array(
+				'destination' => array(
+					'country'   => WC()->customer->get_shipping_country(),
+					'state'     => WC()->customer->get_shipping_state(),
+					'postcode'  => WC()->customer->get_shipping_postcode(),
+					'city'      => WC()->customer->get_shipping_city(),
+					'address'   => WC()->customer->get_shipping_address(),
+					'address_2' => WC()->customer->get_shipping_address_2(),
+				),
+			);
+		}
+
+		// No destination yet (customer hasn't entered address) — don't filter.
+		if ( empty( $package['destination']['country'] ) ) {
+			return null;
+		}
+
+		$zone    = WC_Shipping_Zones::get_zone_matching_package( $package );
+		$zone_id = $zone ? (int) $zone->get_id() : 0;
+
+		$carriers = JWDD_Carriers::get_active();
+
+		// No carriers configured at all — don't filter by carrier.
+		if ( empty( $carriers ) ) {
+			return null;
+		}
+
+		$matched_ids = array();
+
+		foreach ( $carriers as $carrier ) {
+			$zones = json_decode( $carrier->shipping_zones, true );
+
+			// Carrier with no zone mapping is available in all zones.
+			if ( empty( $zones ) || ! is_array( $zones ) ) {
+				$matched_ids[] = (int) $carrier->id;
+				continue;
+			}
+
+			foreach ( $zones as $z ) {
+				if ( (int) ( $z['zone_id'] ?? 0 ) === $zone_id ) {
+					$matched_ids[] = (int) $carrier->id;
+					break;
+				}
+			}
+		}
+
+		return $matched_ids;
 	}
 
 	/**
@@ -53,32 +125,43 @@ class JWDD_Checkout {
 			'jwdd-checkout',
 			JWDD_URL . 'assets/css/jwdd-checkout.css',
 			array(),
-			JWDD_VERSION
+			filemtime( JWDD_DIR . 'assets/css/jwdd-checkout.css' )
 		);
 
 		wp_enqueue_script(
 			'jwdd-checkout',
 			JWDD_URL . 'assets/js/jwdd-checkout.js',
-			array( 'jquery' ),
-			JWDD_VERSION,
+			array( 'jquery', 'jquery-ui-datepicker' ),
+			filemtime( JWDD_DIR . 'assets/js/jwdd-checkout.js' ),
 			true
 		);
 
-		$settings     = get_option( 'jwdd_settings', array() );
-		$available    = JWDD_Schedules::get_available_dates();
-		$show_carrier = ! empty( $settings['show_carrier'] );
+		$settings        = get_option( 'jwdd_settings', array() );
+		$max_future_days = isset( $settings['max_future_days'] ) ? absint( $settings['max_future_days'] ) : 30;
+		$carrier_ids     = self::get_applicable_carrier_ids();
+		$available       = JWDD_Schedules::get_available_dates( $carrier_ids );
+
+		$customer    = WC()->customer;
+		$has_address = $customer && (
+			! empty( $customer->get_shipping_country() ) ||
+			! empty( $customer->get_billing_country() )
+		);
 
 		wp_localize_script( 'jwdd-checkout', 'jwdd_checkout', array(
-			'ajaxurl'        => admin_url( 'admin-ajax.php' ),
-			'nonce'          => wp_create_nonce( 'jwdd_checkout_nonce' ),
+			'ajaxurl'         => admin_url( 'admin-ajax.php' ),
+			'nonce'           => wp_create_nonce( 'jwdd_checkout_nonce' ),
 			'available_dates' => $available,
-			'show_carrier'   => $show_carrier,
-			'i18n'           => array(
+			'max_future_days' => $max_future_days,
+			'has_address'     => $has_address,
+			'i18n'            => array(
 				'select_date'      => __( 'Select a date...', 'jezpress-woo-delivery-dates' ),
 				'select_slot'      => __( 'Select a time slot...', 'jezpress-woo-delivery-dates' ),
 				'loading'          => __( 'Loading time slots...', 'jezpress-woo-delivery-dates' ),
+				'loading_dates'    => __( 'Checking available delivery dates\u2026', 'jezpress-woo-delivery-dates' ),
+				'address_required' => __( 'Enter your shipping address to see available delivery dates.', 'jezpress-woo-delivery-dates' ),
 				'no_slots'         => __( 'No time slots available for this date.', 'jezpress-woo-delivery-dates' ),
-				'error'            => __( 'Could not load time slots. Please refresh the page.', 'jezpress-woo-delivery-dates' ),
+				'no_dates'         => __( 'No delivery dates are currently available for your area.', 'jezpress-woo-delivery-dates' ),
+				'error'            => __( 'Could not load delivery dates. Please refresh the page.', 'jezpress-woo-delivery-dates' ),
 			),
 		) );
 	}
@@ -90,57 +173,30 @@ class JWDD_Checkout {
 	 * @return void
 	 */
 	public function render_fields( $checkout ) {
-		$settings      = get_option( 'jwdd_settings', array() );
-		$label         = ! empty( $settings['checkout_label'] ) ? $settings['checkout_label'] : __( 'Select Delivery Date & Time', 'jezpress-woo-delivery-dates' );
-		$required      = ! empty( $settings['required'] );
-		$show_carrier  = ! empty( $settings['show_carrier'] );
-		$available     = JWDD_Schedules::get_available_dates();
-		$carriers      = JWDD_Carriers::get_active();
+		$settings = get_option( 'jwdd_settings', array() );
+		$label    = ! empty( $settings['checkout_label'] ) ? $settings['checkout_label'] : __( 'Select Delivery Date & Time', 'jezpress-woo-delivery-dates' );
+		$required = ! empty( $settings['required'] );
 
 		echo '<div id="jwdd-delivery-dates-wrap" class="jwdd-checkout-section">';
 		echo '<h3>' . esc_html( $label ) . '</h3>';
 
-		if ( empty( $available ) ) {
-			echo '<p class="jwdd-no-dates">' . esc_html__( 'No delivery dates are currently available. Please contact us.', 'jezpress-woo-delivery-dates' ) . '</p>';
-			echo '</div>';
-			return;
-		}
+		// Status message — JS shows this when address is missing, loading, or no dates.
+		echo '<p id="jwdd-date-status" class="jwdd-date-status" style="display:none;"></p>';
 
-		// Carrier selector (optional).
-		if ( $show_carrier && ! empty( $carriers ) ) {
-			echo '<p class="form-row form-row-wide">';
-			echo '<label for="jwdd_carrier_id">' . esc_html__( 'Delivery Carrier', 'jezpress-woo-delivery-dates' );
-			if ( $required ) {
-				echo ' <abbr class="required" title="required">*</abbr>';
-			}
-			echo '</label>';
-			echo '<select id="jwdd_carrier_id" name="jwdd_carrier_id" class="input-text">';
-			echo '<option value="">' . esc_html__( 'Select a carrier...', 'jezpress-woo-delivery-dates' ) . '</option>';
-			foreach ( $carriers as $carrier ) {
-				echo '<option value="' . esc_attr( $carrier->id ) . '">' . esc_html( $carrier->name ) . '</option>';
-			}
-			echo '</select>';
-			echo '</p>';
-		}
-
-		// Date selector.
-		echo '<p class="form-row form-row-wide">';
-		echo '<label for="jwdd_delivery_date">' . esc_html__( 'Delivery Date', 'jezpress-woo-delivery-dates' );
+		// Date selector — calendar picker (JS shows/hides based on address state).
+		echo '<p class="form-row form-row-wide jwdd-date-row" style="display:none;">';
+		echo '<label for="jwdd_delivery_date_picker">' . esc_html__( 'Delivery Date', 'jezpress-woo-delivery-dates' );
 		if ( $required ) {
 			echo ' <abbr class="required" title="required">*</abbr>';
 		}
 		echo '</label>';
-		echo '<select id="jwdd_delivery_date" name="jwdd_delivery_date" class="input-text">';
-		echo '<option value="">' . esc_html__( 'Select a date...', 'jezpress-woo-delivery-dates' ) . '</option>';
-		foreach ( $available as $date ) {
-			$display = gmdate( 'l, j F Y', strtotime( $date ) );
-			echo '<option value="' . esc_attr( $date ) . '">' . esc_html( $display ) . '</option>';
-		}
-		echo '</select>';
+		echo '<input type="text" id="jwdd_delivery_date_picker" class="input-text jwdd-date-picker" readonly'
+			. ' placeholder="' . esc_attr__( 'Select a date...', 'jezpress-woo-delivery-dates' ) . '">';
+		echo '<input type="hidden" id="jwdd_delivery_date" name="jwdd_delivery_date">';
 		echo '</p>';
 
-		// Time slot selector (populated via AJAX).
-		echo '<p class="form-row form-row-wide">';
+		// Time slot selector — populated via AJAX on date selection.
+		echo '<p class="form-row form-row-wide jwdd-slot-row" style="display:none;">';
 		echo '<label for="jwdd_time_slot_id">' . esc_html__( 'Delivery Time Slot', 'jezpress-woo-delivery-dates' );
 		if ( $required ) {
 			echo ' <abbr class="required" title="required">*</abbr>';
@@ -152,6 +208,32 @@ class JWDD_Checkout {
 		echo '</p>';
 
 		echo '</div>';
+	}
+
+	/**
+	 * AJAX: Return available delivery dates for the current customer session.
+	 *
+	 * Called by checkout JS on updated_checkout to refresh dates after an
+	 * address or shipping method change.
+	 *
+	 * @return void
+	 */
+	public function ajax_get_available_dates() {
+		check_ajax_referer( 'jwdd_checkout_nonce', 'nonce' );
+
+		$customer    = WC()->customer;
+		$has_address = $customer && (
+			! empty( $customer->get_shipping_country() ) ||
+			! empty( $customer->get_billing_country() )
+		);
+
+		$carrier_ids = self::get_applicable_carrier_ids();
+		$dates       = JWDD_Schedules::get_available_dates( $carrier_ids );
+
+		wp_send_json_success( array(
+			'dates'       => $dates,
+			'has_address' => $has_address,
+		) );
 	}
 
 	/**
@@ -180,7 +262,7 @@ class JWDD_Checkout {
 		}
 
 		// Verify the selected slot is still available (race condition protection).
-		$slots = JWDD_Schedules::get_slots_for_date( $date );
+		$slots = JWDD_Schedules::get_slots_for_date( $date, self::get_applicable_carrier_ids() );
 		$valid = false;
 		foreach ( $slots as $slot ) {
 			if ( (int) $slot->id === $slot_id ) {

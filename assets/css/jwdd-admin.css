@@ -118,3 +118,216 @@
 .jwdd-card .required {
 	color: #d63638;
 }
+
+/* ---- Back link ---- */
+.jwdd-back-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	color: #2271b1;
+	text-decoration: none;
+	font-size: 13px;
+}
+
+.jwdd-back-link:hover {
+	text-decoration: underline;
+}
+
+/* ---- Schedule def form: days of week block layout ---- */
+.jwdd-dow-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 0;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.jwdd-dow-row:last-child {
+	border-bottom: none;
+}
+
+.jwdd-dow-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 110px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.jwdd-dow-times {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jwdd-dow-cutoff-lbl {
+	font-size: 12px;
+	color: #666;
+}
+
+.jwdd-dow-times input[type="time"] {
+	font-size: 13px;
+}
+
+.jwdd-dow-times input:disabled,
+.jwdd-dow-times button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.jwdd-dow-cutoff-clear {
+	padding: 0 6px !important;
+	min-height: 28px;
+	line-height: 1;
+	color: #666 !important;
+}
+
+/* ---- Time slots modal ---- */
+.jwdd-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.jwdd-modal-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+}
+
+.jwdd-modal-box {
+	position: relative;
+	background: #fff;
+	border-radius: 4px;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+	width: 560px;
+	max-width: 96vw;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+	z-index: 1;
+}
+
+.jwdd-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 14px 20px;
+	border-bottom: 1px solid #eee;
+}
+
+.jwdd-modal-header h3 {
+	margin: 0;
+	font-size: 15px;
+}
+
+.jwdd-modal-close {
+	background: none;
+	border: none;
+	font-size: 18px;
+	line-height: 1;
+	cursor: pointer;
+	color: #666;
+	padding: 2px 6px;
+}
+
+.jwdd-modal-close:hover {
+	color: #000;
+}
+
+.jwdd-modal-body {
+	padding: 16px 20px 20px;
+	overflow-y: auto;
+}
+
+.jwdd-modal-body h4 {
+	margin: 0 0 10px;
+	font-size: 13px;
+}
+
+.jwdd-modal-divider {
+	margin: 14px 0;
+	border: none;
+	border-top: 1px solid #eee;
+}
+
+.jwdd-modal-no-slots {
+	color: #666;
+	font-size: 13px;
+	margin: 0 0 8px;
+}
+
+.jwdd-modal-slots-table {
+	margin-bottom: 4px;
+	font-size: 13px;
+}
+
+.jwdd-modal-slots-table input[type="time"],
+.jwdd-modal-slots-table input[type="text"] {
+	font-size: 13px;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.jwdd-modal-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: flex-end;
+}
+
+.jwdd-modal-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	font-size: 12px;
+	color: #444;
+}
+
+.jwdd-modal-form label input[type="time"] {
+	font-size: 13px;
+}
+
+.jwdd-modal-form .regular-text {
+	font-size: 13px;
+}
+
+body.jwdd-modal-open {
+	overflow: hidden;
+}
+
+/* ---- Carrier zone repeater ---- */
+.jwdd-zone-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid #f0f0f0;
+}
+
+.jwdd-zone-row:last-child {
+	border-bottom: none;
+}
+
+.jwdd-zone-field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 12px;
+	color: #444;
+}
+
+.jwdd-zone-field select,
+.jwdd-zone-field input[type="text"] {
+	font-size: 13px;
+	min-width: 180px;
+}
+
+.jwdd-zone-remove {
+	align-self: flex-end;
+}

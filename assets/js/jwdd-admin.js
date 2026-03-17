@@ -15,6 +15,8 @@
 	var ajaxurl = cfg.ajaxurl || '';
 	var nonce   = cfg.nonce   || '';
 	var i18n    = cfg.i18n   || {};
+	var context = cfg.context || '';
+	var defId   = parseInt( cfg.def_id || '0', 10 );
 
 	// -------------------------------------------------------------------------
 	// Utility helpers
@@ -52,122 +54,14 @@
 	// CARRIERS TAB
 	// -------------------------------------------------------------------------
 
-	var carrierFeedback = document.getElementById( 'jwdd-carriers-feedback' );
-	var carrierTbody    = document.getElementById( 'jwdd-carriers-tbody' );
-	var carrierEmptyRow = document.getElementById( 'jwdd-carriers-empty' );
-	var saveCarrierBtn  = document.getElementById( 'jwdd-save-carrier' );
-	var cancelCarrierBtn = document.getElementById( 'jwdd-cancel-carrier' );
-	var carrierFormTitle = document.getElementById( 'jwdd-carrier-form-title' );
-
-	var idField          = document.getElementById( 'jwdd_carrier_id' );
-	var nameField        = document.getElementById( 'jwdd_carrier_name' );
-	var codeField        = document.getElementById( 'jwdd_carrier_code' );
-	var descField        = document.getElementById( 'jwdd_carrier_description' );
-	var sortField        = document.getElementById( 'jwdd_carrier_sort_order' );
-	var activeField      = document.getElementById( 'jwdd_carrier_is_active' );
-
-	function resetCarrierForm() {
-		if ( idField ) idField.value = '0';
-		if ( nameField ) nameField.value = '';
-		if ( codeField ) codeField.value = '';
-		if ( descField ) descField.value = '';
-		if ( sortField ) sortField.value = '0';
-		if ( activeField ) activeField.checked = true;
-		if ( carrierFormTitle ) carrierFormTitle.textContent = i18n.add_carrier || 'Add Carrier';
-		if ( saveCarrierBtn ) saveCarrierBtn.textContent = ( i18n.add_carrier || 'Add Carrier' );
-		if ( cancelCarrierBtn ) cancelCarrierBtn.style.display = 'none';
+	if ( context === 'carriers_list' ) {
+		bindCarrierListActions();
 	}
 
-	function renderCarrierRow( c ) {
-		var badge = c.is_active == 1
-			? '<span class="jwdd-badge jwdd-badge-active">Active</span>'
-			: '<span class="jwdd-badge jwdd-badge-inactive">Inactive</span>';
-
-		return '<tr id="jwdd-carrier-row-' + c.id + '">'
-			+ '<td><strong>' + escHtml( c.name ) + '</strong></td>'
-			+ '<td><code>' + escHtml( c.code ) + '</code></td>'
-			+ '<td>' + escHtml( c.description ) + '</td>'
-			+ '<td>' + escHtml( String( c.sort_order ) ) + '</td>'
-			+ '<td>' + badge + '</td>'
-			+ '<td>'
-			+ '<button class="button button-small jwdd-edit-carrier"'
-			+ ' data-id="' + c.id + '" data-name="' + escAttr( c.name ) + '"'
-			+ ' data-code="' + escAttr( c.code ) + '" data-description="' + escAttr( c.description ) + '"'
-			+ ' data-sort_order="' + c.sort_order + '" data-is_active="' + c.is_active + '">Edit</button> '
-			+ '<button class="button button-small jwdd-delete-carrier"'
-			+ ' data-id="' + c.id + '" data-name="' + escAttr( c.name ) + '">Delete</button>'
-			+ '</td>'
-			+ '</tr>';
-	}
-
-	if ( saveCarrierBtn ) {
-		saveCarrierBtn.addEventListener( 'click', function () {
-			var name = nameField ? nameField.value.trim() : '';
-			if ( ! name ) {
-				showFeedback( carrierFeedback, 'Carrier name is required.', 'error' );
-				return;
-			}
-
-			var code = codeField && codeField.value.trim() ? codeField.value.trim() : slugify( name );
-			saveCarrierBtn.textContent = i18n.saving || 'Saving...';
-			saveCarrierBtn.disabled    = true;
-
-			post( 'jwdd_save_carrier', {
-				id:          idField ? idField.value : '0',
-				name:        name,
-				code:        code,
-				description: descField ? descField.value : '',
-				sort_order:  sortField ? sortField.value : '0',
-				is_active:   activeField && activeField.checked ? '1' : '0',
-			}, function ( res ) {
-				saveCarrierBtn.disabled = false;
-				resetCarrierForm();
-
-				if ( res.success ) {
-					showFeedback( carrierFeedback, res.data.message, 'success' );
-					var carrier = res.data.carrier;
-					var existingRow = document.getElementById( 'jwdd-carrier-row-' + carrier.id );
-
-					if ( existingRow ) {
-						existingRow.outerHTML = renderCarrierRow( carrier );
-					} else {
-						if ( carrierEmptyRow ) carrierEmptyRow.remove();
-						carrierTbody.insertAdjacentHTML( 'beforeend', renderCarrierRow( carrier ) );
-					}
-
-					bindCarrierActions();
-				} else {
-					showFeedback( carrierFeedback, res.data.message, 'error' );
-				}
-			} );
-		} );
-	}
-
-	if ( cancelCarrierBtn ) {
-		cancelCarrierBtn.addEventListener( 'click', resetCarrierForm );
-	}
-
-	function bindCarrierActions() {
-		// Edit buttons
-		document.querySelectorAll( '.jwdd-edit-carrier' ).forEach( function ( btn ) {
-			btn.onclick = function () {
-				if ( idField ) idField.value = btn.dataset.id;
-				if ( nameField ) nameField.value = btn.dataset.name;
-				if ( codeField ) codeField.value = btn.dataset.code;
-				if ( descField ) descField.value = btn.dataset.description;
-				if ( sortField ) sortField.value = btn.dataset.sort_order;
-				if ( activeField ) activeField.checked = btn.dataset.is_active === '1';
-				if ( carrierFormTitle ) carrierFormTitle.textContent = 'Edit Carrier';
-				if ( saveCarrierBtn ) saveCarrierBtn.textContent = 'Update Carrier';
-				if ( cancelCarrierBtn ) cancelCarrierBtn.style.display = '';
-				document.getElementById( 'jwdd-carrier-form-wrap' ).scrollIntoView( { behavior: 'smooth' } );
-			};
-		} );
-
-		// Delete buttons
+	function bindCarrierListActions() {
 		document.querySelectorAll( '.jwdd-delete-carrier' ).forEach( function ( btn ) {
 			btn.onclick = function () {
-				var name = btn.dataset.name;
+				var name = btn.dataset.name || '';
 				if ( ! confirm( ( i18n.confirm_delete_carrier || 'Delete this carrier and all its schedules?' ).replace( '%s', name ) ) ) {
 					return;
 				}
@@ -179,277 +73,415 @@
 					if ( res.success ) {
 						var row = document.getElementById( 'jwdd-carrier-row-' + btn.dataset.id );
 						if ( row ) row.remove();
-						showFeedback( carrierFeedback, res.data.message, 'success' );
-						if ( carrierTbody && carrierTbody.querySelectorAll( 'tr' ).length === 0 ) {
-							carrierTbody.innerHTML = '<tr id="jwdd-carriers-empty"><td colspan="6">' + ( i18n.no_carriers || 'No carriers yet.' ) + '</td></tr>';
+						var feedback = document.getElementById( 'jwdd-carriers-feedback' );
+						showFeedback( feedback, res.data.message, 'success' );
+						var tbody = document.getElementById( 'jwdd-carriers-tbody' );
+						if ( tbody && tbody.querySelectorAll( 'tr' ).length === 0 ) {
+							tbody.innerHTML = '<tr id="jwdd-carriers-empty"><td colspan="6">' + ( i18n.no_carriers || 'No carriers yet.' ) + '</td></tr>';
 						}
 					} else {
 						btn.textContent = 'Delete';
 						btn.disabled    = false;
-						showFeedback( carrierFeedback, res.data.message, 'error' );
+						showFeedback( document.getElementById( 'jwdd-carriers-feedback' ), res.data.message || i18n.error, 'error' );
 					}
 				} );
 			};
 		} );
 	}
 
-	bindCarrierActions();
-
-	// -------------------------------------------------------------------------
-	// SCHEDULES TAB
-	// -------------------------------------------------------------------------
-
-	var scheduleFeedback  = document.getElementById( 'jwdd-schedules-feedback' );
-	var schedulesTbody    = document.getElementById( 'jwdd-schedules-tbody' );
-	var saveScheduleBtn   = document.getElementById( 'jwdd-save-schedule' );
-	var cancelScheduleBtn = document.getElementById( 'jwdd-cancel-schedule' );
-	var schFormTitle      = document.getElementById( 'jwdd-schedule-form-title' );
-	var schIdField        = document.getElementById( 'jwdd_schedule_id' );
-
-	function resetScheduleForm() {
-		if ( schIdField ) schIdField.value = '0';
-		if ( document.getElementById( 'jwdd_schedule_carrier' ) ) document.getElementById( 'jwdd_schedule_carrier' ).value = '0';
-		if ( document.getElementById( 'jwdd_schedule_label' ) ) document.getElementById( 'jwdd_schedule_label' ).value = '';
-		if ( document.getElementById( 'jwdd_schedule_max' ) ) document.getElementById( 'jwdd_schedule_max' ).value = '0';
-		if ( document.getElementById( 'jwdd_schedule_is_active' ) ) document.getElementById( 'jwdd_schedule_is_active' ).checked = true;
-		if ( schFormTitle ) schFormTitle.textContent = 'Add Schedule Slot';
-		if ( saveScheduleBtn ) saveScheduleBtn.textContent = 'Add Slot';
-		if ( cancelScheduleBtn ) cancelScheduleBtn.style.display = 'none';
+	if ( context === 'carriers_add' || context === 'carriers_edit' ) {
+		initCarrierForm();
 	}
 
-	function renderScheduleRow( s ) {
-		var badge = s.is_active == 1
-			? '<span class="jwdd-badge jwdd-badge-active">Active</span>'
-			: '<span class="jwdd-badge jwdd-badge-inactive">Inactive</span>';
-		var maxDisplay = s.max_orders == 0 ? '∞' : s.max_orders;
-		var dateDisplay = formatDate( s.schedule_date );
+	function initCarrierForm() {
+		var saveBtn  = document.getElementById( 'jwdd-save-carrier' );
+		var feedback = document.getElementById( 'jwdd-carrier-feedback' );
 
-		return '<tr id="jwdd-schedule-row-' + s.id + '">'
-			+ '<td>' + escHtml( dateDisplay ) + '</td>'
-			+ '<td>' + escHtml( s.carrier_name || '—' ) + '</td>'
-			+ '<td>' + escHtml( s.label ) + '</td>'
-			+ '<td>' + maxDisplay + '</td>'
-			+ '<td>' + escHtml( String( s.booked_count ) ) + '</td>'
-			+ '<td>' + badge + '</td>'
-			+ '<td>'
-			+ '<button class="button button-small jwdd-edit-schedule"'
-			+ ' data-id="' + s.id + '"'
-			+ ' data-carrier_id="' + s.carrier_id + '"'
-			+ ' data-schedule_date="' + escAttr( s.schedule_date ) + '"'
-			+ ' data-start_time="' + escAttr( s.start_time ) + '"'
-			+ ' data-end_time="' + escAttr( s.end_time ) + '"'
-			+ ' data-label="' + escAttr( s.label ) + '"'
-			+ ' data-max_orders="' + s.max_orders + '"'
-			+ ' data-is_active="' + s.is_active + '">Edit</button> '
-			+ '<button class="button button-small jwdd-delete-schedule" data-id="' + s.id + '">Delete</button>'
-			+ '</td>'
-			+ '</tr>';
-	}
+		if ( ! saveBtn ) return;
 
-	function loadSchedules() {
-		if ( ! schedulesTbody ) return;
+		initCarrierZoneRows();
 
-		var carrier  = document.getElementById( 'jwdd-filter-carrier' );
-		var dateFrom = document.getElementById( 'jwdd-filter-date-from' );
-		var dateTo   = document.getElementById( 'jwdd-filter-date-to' );
+		saveBtn.addEventListener( 'click', function () {
+			var nameEl   = document.getElementById( 'jwdd_carrier_name' );
+			var codeEl   = document.getElementById( 'jwdd_carrier_code' );
+			var activeEl = document.getElementById( 'jwdd_carrier_is_active' );
+			var idEl     = document.getElementById( 'jwdd_carrier_id' );
 
-		post( 'jwdd_get_schedules', {
-			carrier_id: carrier ? carrier.value : '',
-			date_from:  dateFrom ? dateFrom.value : '',
-			date_to:    dateTo ? dateTo.value : '',
-		}, function ( res ) {
-			if ( ! res.success ) {
-				schedulesTbody.innerHTML = '<tr><td colspan="7">' + escHtml( res.data.message || i18n.error ) + '</td></tr>';
+			var name = nameEl ? nameEl.value.trim() : '';
+			if ( ! name ) {
+				showFeedback( feedback, 'Carrier name is required.', 'error' );
 				return;
 			}
 
-			var schedules = res.data.schedules;
-			if ( ! schedules || schedules.length === 0 ) {
-				schedulesTbody.innerHTML = '<tr><td colspan="7">' + ( i18n.no_schedules || 'No schedule slots found.' ) + '</td></tr>';
-				return;
-			}
+			var zones = [];
+			document.querySelectorAll( '#jwdd-carrier-zones-list .jwdd-zone-row' ).forEach( function ( row ) {
+				var sel     = row.querySelector( '.jwdd-zone-select' );
+				var inp     = row.querySelector( '.jwdd-zone-est-days' );
+				var estDays = inp ? inp.value.trim() : '';
+				if ( estDays ) {
+					zones.push( { zone_id: sel ? parseInt( sel.value, 10 ) : 0, est_days: estDays } );
+				}
+			} );
 
-			schedulesTbody.innerHTML = schedules.map( renderScheduleRow ).join( '' );
-			bindScheduleActions();
-		} );
-	}
+			var code = codeEl && codeEl.value.trim() ? codeEl.value.trim() : slugify( name );
+			saveBtn.textContent = i18n.saving || 'Saving...';
+			saveBtn.disabled    = true;
 
-	function bindScheduleActions() {
-		document.querySelectorAll( '.jwdd-edit-schedule' ).forEach( function ( btn ) {
-			btn.onclick = function () {
-				if ( schIdField ) schIdField.value = btn.dataset.id;
-				var el;
-				if ( ( el = document.getElementById( 'jwdd_schedule_carrier' ) ) ) el.value = btn.dataset.carrier_id;
-				if ( ( el = document.getElementById( 'jwdd_schedule_date' ) ) ) el.value = btn.dataset.schedule_date;
-				if ( ( el = document.getElementById( 'jwdd_schedule_start' ) ) ) el.value = btn.dataset.start_time.substring( 0, 5 );
-				if ( ( el = document.getElementById( 'jwdd_schedule_end' ) ) ) el.value = btn.dataset.end_time.substring( 0, 5 );
-				if ( ( el = document.getElementById( 'jwdd_schedule_label' ) ) ) el.value = btn.dataset.label;
-				if ( ( el = document.getElementById( 'jwdd_schedule_max' ) ) ) el.value = btn.dataset.max_orders;
-				if ( ( el = document.getElementById( 'jwdd_schedule_is_active' ) ) ) el.checked = btn.dataset.is_active === '1';
-				if ( schFormTitle ) schFormTitle.textContent = 'Edit Schedule Slot';
-				if ( saveScheduleBtn ) saveScheduleBtn.textContent = 'Update Slot';
-				if ( cancelScheduleBtn ) cancelScheduleBtn.style.display = '';
-				document.getElementById( 'jwdd-schedule-form-wrap' ).scrollIntoView( { behavior: 'smooth' } );
-			};
-		} );
-
-		document.querySelectorAll( '.jwdd-delete-schedule' ).forEach( function ( btn ) {
-			btn.onclick = function () {
-				if ( ! confirm( i18n.confirm_delete_schedule || 'Delete this schedule slot?' ) ) return;
-
-				btn.textContent = i18n.deleting || 'Deleting...';
-				btn.disabled    = true;
-
-				post( 'jwdd_delete_schedule', { id: btn.dataset.id }, function ( res ) {
-					if ( res.success ) {
-						var row = document.getElementById( 'jwdd-schedule-row-' + btn.dataset.id );
-						if ( row ) row.remove();
-						showFeedback( scheduleFeedback, res.data.message, 'success' );
-					} else {
-						btn.textContent = 'Delete';
-						btn.disabled    = false;
-						showFeedback( scheduleFeedback, res.data.message, 'error' );
-					}
-				} );
-			};
-		} );
-	}
-
-	// Filter button
-	var filterBtn = document.getElementById( 'jwdd-filter-schedules' );
-	if ( filterBtn ) {
-		filterBtn.addEventListener( 'click', loadSchedules );
-	}
-
-	// Save schedule
-	if ( saveScheduleBtn ) {
-		saveScheduleBtn.addEventListener( 'click', function () {
-			var date  = document.getElementById( 'jwdd_schedule_date' );
-			var start = document.getElementById( 'jwdd_schedule_start' );
-			var end   = document.getElementById( 'jwdd_schedule_end' );
-
-			if ( ! date || ! date.value ) { showFeedback( scheduleFeedback, 'Date is required.', 'error' ); return; }
-			if ( ! start || ! start.value ) { showFeedback( scheduleFeedback, 'Start time is required.', 'error' ); return; }
-			if ( ! end || ! end.value ) { showFeedback( scheduleFeedback, 'End time is required.', 'error' ); return; }
-
-			saveScheduleBtn.textContent = i18n.saving || 'Saving...';
-			saveScheduleBtn.disabled    = true;
-
-			post( 'jwdd_save_schedule', {
-				id:            schIdField ? schIdField.value : '0',
-				carrier_id:    document.getElementById( 'jwdd_schedule_carrier' ) ? document.getElementById( 'jwdd_schedule_carrier' ).value : '0',
-				schedule_date: date.value,
-				start_time:    start.value,
-				end_time:      end.value,
-				label:         document.getElementById( 'jwdd_schedule_label' ) ? document.getElementById( 'jwdd_schedule_label' ).value : '',
-				max_orders:    document.getElementById( 'jwdd_schedule_max' ) ? document.getElementById( 'jwdd_schedule_max' ).value : '0',
-				is_active:     document.getElementById( 'jwdd_schedule_is_active' ) && document.getElementById( 'jwdd_schedule_is_active' ).checked ? '1' : '0',
+			post( 'jwdd_save_carrier', {
+				id:                  idEl ? idEl.value : '0',
+				name:                name,
+				code:                code,
+				is_active:           activeEl && activeEl.checked ? '1' : '0',
+				shipping_zones_json: JSON.stringify( zones ),
 			}, function ( res ) {
-				saveScheduleBtn.disabled = false;
-				resetScheduleForm();
+				saveBtn.disabled = false;
 
 				if ( res.success ) {
-					showFeedback( scheduleFeedback, res.data.message, 'success' );
-					loadSchedules();
+					if ( context === 'carriers_add' ) {
+						window.location.href = cfg.carrier_list_url || '';
+					} else {
+						saveBtn.textContent = 'Update Carrier';
+						showFeedback( feedback, res.data.message, 'success' );
+					}
 				} else {
-					showFeedback( scheduleFeedback, res.data.message, 'error' );
+					saveBtn.textContent = context === 'carriers_add' ? 'Add Carrier' : 'Update Carrier';
+					showFeedback( feedback, res.data.message || i18n.error, 'error' );
 				}
 			} );
 		} );
 	}
 
-	if ( cancelScheduleBtn ) {
-		cancelScheduleBtn.addEventListener( 'click', resetScheduleForm );
+	function buildZoneRow( zoneId, estDays ) {
+		var row = document.createElement( 'div' );
+		row.className = 'jwdd-zone-row';
+
+		var zoneField = document.createElement( 'label' );
+		zoneField.className = 'jwdd-zone-field';
+
+		var zoneSpan = document.createElement( 'span' );
+		zoneSpan.textContent = 'Shipping Zone';
+		zoneField.appendChild( zoneSpan );
+
+		var select = document.createElement( 'select' );
+		select.className = 'jwdd-zone-select';
+		( cfg.wc_zones || [] ).forEach( function ( z ) {
+			var opt = document.createElement( 'option' );
+			opt.value = z.id;
+			opt.textContent = z.name;
+			if ( parseInt( zoneId, 10 ) === z.id ) { opt.selected = true; }
+			select.appendChild( opt );
+		} );
+		zoneField.appendChild( select );
+
+		var daysField = document.createElement( 'label' );
+		daysField.className = 'jwdd-zone-field';
+
+		var daysSpan = document.createElement( 'span' );
+		daysSpan.textContent = 'Est. Delivery Days';
+		daysField.appendChild( daysSpan );
+
+		var input = document.createElement( 'input' );
+		input.type = 'text';
+		input.className = 'jwdd-zone-est-days';
+		input.value = estDays || '';
+		input.placeholder = 'e.g. 1\u20132 days';
+		daysField.appendChild( input );
+
+		var removeBtn = document.createElement( 'button' );
+		removeBtn.type = 'button';
+		removeBtn.className = 'button button-small jwdd-zone-remove';
+		removeBtn.textContent = 'Remove';
+		removeBtn.addEventListener( 'click', function () { row.remove(); } );
+
+		row.appendChild( zoneField );
+		row.appendChild( daysField );
+		row.appendChild( removeBtn );
+
+		return row;
+	}
+
+	function initCarrierZoneRows() {
+		var list   = document.getElementById( 'jwdd-carrier-zones-list' );
+		var addBtn = document.getElementById( 'jwdd-add-zone-row' );
+		if ( ! list || ! addBtn ) return;
+
+		( cfg.carrier_zones || [] ).forEach( function ( z ) {
+			list.appendChild( buildZoneRow( z.zone_id, z.est_days ) );
+		} );
+
+		addBtn.addEventListener( 'click', function () {
+			list.appendChild( buildZoneRow( 0, '' ) );
+		} );
 	}
 
 	// -------------------------------------------------------------------------
-	// GENERATE RECURRING
+	// SCHEDULES TAB
 	// -------------------------------------------------------------------------
 
-	var generateBtn = document.getElementById( 'jwdd-generate-recurring' );
-	var recurringFeedback = document.getElementById( 'jwdd-recurring-feedback' );
+	// -- Schedule Defs List (schedules_list context) --
 
-	if ( generateBtn ) {
-		generateBtn.addEventListener( 'click', function () {
-			var startDate  = document.getElementById( 'jwdd_rec_start' );
-			var endDate    = document.getElementById( 'jwdd_rec_end' );
-			var startTime  = document.getElementById( 'jwdd_rec_start_time' );
-			var endTime    = document.getElementById( 'jwdd_rec_end_time' );
-			var carrierId  = document.getElementById( 'jwdd_rec_carrier' );
-			var label      = document.getElementById( 'jwdd_rec_label' );
-			var maxOrders  = document.getElementById( 'jwdd_rec_max' );
+	if ( context === 'schedules_list' ) {
+		bindScheduleDefActions();
+	}
 
-			var days = [];
-			document.querySelectorAll( '.jwdd-rec-dow:checked' ).forEach( function ( cb ) {
-				days.push( cb.value );
-			} );
+	function bindScheduleDefActions() {
+		document.querySelectorAll( '.jwdd-delete-schedule-def' ).forEach( function ( btn ) {
+			btn.onclick = function () {
+				var name = btn.dataset.name || '';
+				if ( ! confirm( ( i18n.confirm_delete_schedule || 'Delete this schedule and all its slots?' ).replace( '%s', name ) ) ) {
+					return;
+				}
 
-			if ( ! startDate || ! startDate.value || ! endDate || ! endDate.value ) {
-				showFeedback( recurringFeedback, 'Start and end dates are required.', 'error' ); return;
+				btn.textContent = i18n.deleting || 'Deleting...';
+				btn.disabled    = true;
+
+				post( 'jwdd_delete_schedule_def', { id: btn.dataset.id }, function ( res ) {
+					if ( res.success ) {
+						var row = document.getElementById( 'jwdd-def-row-' + btn.dataset.id );
+						if ( row ) row.remove();
+						var feedback = document.getElementById( 'jwdd-def-feedback' );
+						showFeedback( feedback, res.data.message, 'success' );
+						var tbody = document.getElementById( 'jwdd-schedule-defs-tbody' );
+						if ( tbody && tbody.querySelectorAll( 'tr' ).length === 0 ) {
+							tbody.innerHTML = '<tr id="jwdd-defs-empty"><td colspan="5">' + ( i18n.no_schedules || 'No schedules yet.' ) + '</td></tr>';
+						}
+					} else {
+						btn.textContent = 'Delete';
+						btn.disabled    = false;
+						showFeedback( document.getElementById( 'jwdd-def-feedback' ), res.data.message || i18n.error, 'error' );
+					}
+				} );
+			};
+		} );
+	}
+
+	// -- Schedule Def Form (schedules_add and schedules_edit contexts) --
+
+	// Per-day slot data: { dayNum: [{start, end, label}, ...], ... }
+	var daySlots = {};
+	if ( context === 'schedules_add' || context === 'schedules_edit' ) {
+		Object.keys( cfg.day_slots || {} ).forEach( function ( k ) {
+			daySlots[ parseInt( k, 10 ) ] = ( cfg.day_slots[ k ] || [] ).slice();
+		} );
+	}
+
+	if ( context === 'schedules_add' || context === 'schedules_edit' ) {
+		initDowToggles();
+		initScheduleDefForm();
+		initSlotModal();
+	}
+
+	function initDowToggles() {
+		document.querySelectorAll( '.jwdd-def-dow' ).forEach( function ( cb ) {
+			var row = cb.closest( '.jwdd-dow-row' );
+			if ( ! row ) return;
+
+			function syncRow() {
+				row.querySelectorAll( '.jwdd-dow-cutoff, .jwdd-dow-cutoff-clear, .jwdd-dow-slots-btn' ).forEach( function ( el ) {
+					el.disabled = ! cb.checked;
+				} );
 			}
-			if ( days.length === 0 ) {
-				showFeedback( recurringFeedback, 'Select at least one day of the week.', 'error' ); return;
-			}
-			if ( ! startTime || ! startTime.value || ! endTime || ! endTime.value ) {
-				showFeedback( recurringFeedback, 'Start and end times are required.', 'error' ); return;
-			}
+			syncRow();
+			cb.addEventListener( 'change', syncRow );
 
-			if ( ! confirm( i18n.confirm_generate || 'Generate recurring slots for the selected date range and days?' ) ) {
+			var clearBtn = row.querySelector( '.jwdd-dow-cutoff-clear' );
+			if ( clearBtn ) {
+				clearBtn.addEventListener( 'click', function () {
+					var cutoffInput = row.querySelector( '.jwdd-dow-cutoff' );
+					if ( cutoffInput ) cutoffInput.value = '';
+				} );
+			}
+		} );
+	}
+
+	function initScheduleDefForm() {
+		var saveBtn  = document.getElementById( 'jwdd-save-schedule-def' );
+		var feedback = document.getElementById( 'jwdd-def-feedback' );
+
+		if ( ! saveBtn ) return;
+
+		saveBtn.addEventListener( 'click', function () {
+			var nameEl    = document.getElementById( 'jwdd_def_name' );
+			var carrierEl = document.getElementById( 'jwdd_def_carrier' );
+			var activeEl  = document.getElementById( 'jwdd_def_is_active' );
+			var idEl      = document.getElementById( 'jwdd_def_id' );
+
+			var name = nameEl ? nameEl.value.trim() : '';
+			if ( ! name ) {
+				showFeedback( feedback, 'Schedule name is required.', 'error' );
 				return;
 			}
 
-			generateBtn.textContent = i18n.generating || 'Generating...';
-			generateBtn.disabled    = true;
+			var days = [];
+			document.querySelectorAll( '.jwdd-def-dow:checked' ).forEach( function ( cb ) {
+				var row    = cb.closest( '.jwdd-dow-row' );
+				var dayNum = parseInt( cb.value, 10 );
+				var cutoff = row ? ( ( row.querySelector( '.jwdd-dow-cutoff' ) || {} ).value || '12:00' ) : '12:00';
+				days.push( { day: dayNum, cutoff: cutoff, slots: daySlots[ dayNum ] || [] } );
+			} );
 
-			var params = {
-				carrier_id:  carrierId ? carrierId.value : '0',
-				start_date:  startDate.value,
-				end_date:    endDate.value,
-				start_time:  startTime.value,
-				end_time:    endTime.value,
-				label:       label ? label.value : '',
-				max_orders:  maxOrders ? maxOrders.value : '0',
-			};
+			saveBtn.textContent = i18n.saving || 'Saving...';
+			saveBtn.disabled    = true;
 
-			// Append days array as days_of_week[].
-			days.forEach( function ( d ) { params[ 'days_of_week[]' ] = d; } );
-
-			// URLSearchParams doesn't support duplicate keys the way we need, so build body manually.
 			var body = new URLSearchParams();
-			body.append( 'action', 'jwdd_generate_recurring' );
+			body.append( 'action', 'jwdd_save_schedule_def' );
 			body.append( 'nonce', nonce );
-			body.append( 'carrier_id', params.carrier_id );
-			body.append( 'start_date', params.start_date );
-			body.append( 'end_date', params.end_date );
-			body.append( 'start_time', params.start_time );
-			body.append( 'end_time', params.end_time );
-			body.append( 'label', params.label );
-			body.append( 'max_orders', params.max_orders );
-			days.forEach( function ( d ) { body.append( 'days_of_week[]', d ); } );
+			body.append( 'id', idEl ? idEl.value : '0' );
+			body.append( 'name', name );
+			body.append( 'carrier_id', carrierEl ? carrierEl.value : '0' );
+			body.append( 'is_active', activeEl && activeEl.checked ? '1' : '0' );
+			body.append( 'days_of_week_json', JSON.stringify( days ) );
 
 			fetch( ajaxurl, {
-				method: 'POST',
+				method:  'POST',
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-				body: body,
+				body:    body,
 			} )
 				.then( function ( r ) { return r.json(); } )
 				.then( function ( res ) {
-					generateBtn.disabled    = false;
-					generateBtn.textContent = 'Generate Slots';
+					saveBtn.disabled = false;
 
 					if ( res.success ) {
-						showFeedback( recurringFeedback, res.data.message, 'success' );
-						loadSchedules();
+						if ( context === 'schedules_add' && res.data.def_id ) {
+							window.location.href = ( cfg.def_edit_base_url || '' ) + '&def_id=' + res.data.def_id;
+						} else {
+							saveBtn.textContent = 'Update Schedule';
+							showFeedback( feedback, res.data.message, 'success' );
+						}
 					} else {
-						showFeedback( recurringFeedback, res.data.message || i18n.error, 'error' );
+						saveBtn.textContent = context === 'schedules_add' ? 'Add Schedule' : 'Update Schedule';
+						showFeedback( feedback, res.data.message || i18n.error, 'error' );
 					}
 				} )
 				.catch( function () {
-					generateBtn.disabled    = false;
-					generateBtn.textContent = 'Generate Slots';
-					showFeedback( recurringFeedback, i18n.error, 'error' );
+					saveBtn.disabled    = false;
+					saveBtn.textContent = context === 'schedules_add' ? 'Add Schedule' : 'Update Schedule';
+					showFeedback( feedback, i18n.error, 'error' );
 				} );
 		} );
+	}
+
+	// -- Time Slots Modal --
+
+	var modalActiveDayNum  = null;
+
+	function initSlotModal() {
+		var modal = document.getElementById( 'jwdd-slot-modal' );
+		if ( ! modal ) return;
+
+		// Open modal when a day's "Time Slots" button is clicked.
+		document.querySelectorAll( '.jwdd-dow-slots-btn' ).forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				openSlotModal( parseInt( btn.dataset.day, 10 ), btn.dataset.name || '' );
+			} );
+		} );
+
+		// Close on backdrop or × button.
+		modal.querySelector( '.jwdd-modal-backdrop' ).addEventListener( 'click', closeSlotModal );
+		modal.querySelector( '.jwdd-modal-close' ).addEventListener( 'click', closeSlotModal );
+
+		// Add slot button inside modal.
+		var addBtn = document.getElementById( 'jwdd-modal-add-slot' );
+		if ( addBtn ) {
+			addBtn.addEventListener( 'click', function () {
+				if ( null === modalActiveDayNum ) return;
+				var startEl = document.getElementById( 'jwdd_slot_start' );
+				var endEl   = document.getElementById( 'jwdd_slot_end' );
+				var labelEl = document.getElementById( 'jwdd_slot_label' );
+				var start   = startEl ? startEl.value : '09:00';
+				var end     = endEl   ? endEl.value   : '12:00';
+				var label   = labelEl ? labelEl.value.trim() : '';
+				if ( ! start || ! end ) return;
+				if ( ! daySlots[ modalActiveDayNum ] ) daySlots[ modalActiveDayNum ] = [];
+				daySlots[ modalActiveDayNum ].push( { start: start, end: end, label: label } );
+				updateSlotCount( modalActiveDayNum );
+				if ( startEl ) startEl.value = '09:00';
+				if ( endEl )   endEl.value   = '12:00';
+				if ( labelEl ) labelEl.value = '';
+				renderModalSlotList();
+			} );
+		}
+	}
+
+	function openSlotModal( dayNum, dayName ) {
+		var modal = document.getElementById( 'jwdd-slot-modal' );
+		if ( ! modal ) return;
+		modalActiveDayNum = dayNum;
+		document.getElementById( 'jwdd-modal-title' ).textContent = dayName + ' \u2014 Time Slots';
+		renderModalSlotList();
+		var startEl = document.getElementById( 'jwdd_slot_start' );
+		var endEl   = document.getElementById( 'jwdd_slot_end' );
+		var labelEl = document.getElementById( 'jwdd_slot_label' );
+		if ( startEl ) startEl.value = '09:00';
+		if ( endEl )   endEl.value   = '12:00';
+		if ( labelEl ) labelEl.value = '';
+		modal.style.display = '';
+		document.body.classList.add( 'jwdd-modal-open' );
+	}
+
+	function closeSlotModal() {
+		var modal = document.getElementById( 'jwdd-slot-modal' );
+		if ( modal ) modal.style.display = 'none';
+		document.body.classList.remove( 'jwdd-modal-open' );
+		modalActiveDayNum = null;
+	}
+
+	function renderModalSlotList() {
+		var list  = document.getElementById( 'jwdd-modal-slots-list' );
+		if ( ! list ) return;
+		var slots = ( modalActiveDayNum !== null && daySlots[ modalActiveDayNum ] ) ? daySlots[ modalActiveDayNum ] : [];
+		if ( slots.length === 0 ) {
+			list.innerHTML = '<p class="jwdd-modal-no-slots">No time slots added yet.</p>';
+			return;
+		}
+		var html = '<table class="widefat jwdd-modal-slots-table"><thead><tr>'
+			+ '<th>Start</th><th>End</th><th>Label</th><th></th>'
+			+ '</tr></thead><tbody>';
+		slots.forEach( function ( slot, idx ) {
+			html += '<tr>'
+				+ '<td><input type="time" class="jwdd-modal-slot-start" data-idx="' + idx + '" value="' + escAttr( slot.start ) + '"></td>'
+				+ '<td><input type="time" class="jwdd-modal-slot-end" data-idx="' + idx + '" value="' + escAttr( slot.end ) + '"></td>'
+				+ '<td><input type="text" class="jwdd-modal-slot-label" data-idx="' + idx + '" value="' + escAttr( slot.label || '' ) + '" placeholder="Label"></td>'
+				+ '<td><button type="button" class="button button-small jwdd-modal-delete-slot" data-idx="' + idx + '">Remove</button></td>'
+				+ '</tr>';
+		} );
+		html += '</tbody></table>';
+		list.innerHTML = html;
+		bindModalSlotActions();
+	}
+
+	function bindModalSlotActions() {
+		var list = document.getElementById( 'jwdd-modal-slots-list' );
+
+		list.querySelectorAll( '.jwdd-modal-slot-start, .jwdd-modal-slot-end, .jwdd-modal-slot-label' ).forEach( function ( input ) {
+			input.addEventListener( 'change', function () {
+				var idx   = parseInt( input.dataset.idx, 10 );
+				var slots = daySlots[ modalActiveDayNum ] || [];
+				if ( ! slots[ idx ] ) return;
+				if ( input.classList.contains( 'jwdd-modal-slot-start' ) ) slots[ idx ].start = input.value;
+				if ( input.classList.contains( 'jwdd-modal-slot-end' ) )   slots[ idx ].end   = input.value;
+				if ( input.classList.contains( 'jwdd-modal-slot-label' ) ) slots[ idx ].label = input.value;
+				daySlots[ modalActiveDayNum ] = slots;
+			} );
+		} );
+
+		list.querySelectorAll( '.jwdd-modal-delete-slot' ).forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				var idx = parseInt( btn.dataset.idx, 10 );
+				if ( modalActiveDayNum !== null && daySlots[ modalActiveDayNum ] ) {
+					daySlots[ modalActiveDayNum ].splice( idx, 1 );
+					updateSlotCount( modalActiveDayNum );
+					renderModalSlotList();
+				}
+			} );
+		} );
+	}
+
+	function updateSlotCount( dayNum ) {
+		var btn = document.querySelector( '.jwdd-dow-slots-btn[data-day="' + dayNum + '"]' );
+		if ( ! btn ) return;
+		var countEl = btn.querySelector( '.jwdd-dow-slot-count' );
+		if ( countEl ) countEl.textContent = '(' + ( ( daySlots[ dayNum ] || [] ).length ) + ')';
 	}
 
 	// -------------------------------------------------------------------------
@@ -472,11 +504,6 @@
 		if ( parts.length !== 3 ) return dateStr;
 		var d = new Date( parts[0], parts[1] - 1, parts[2] );
 		return d.toLocaleDateString( undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' } );
-	}
-
-	// Load schedules on page load if on the schedules tab.
-	if ( schedulesTbody ) {
-		loadSchedules();
 	}
 
 } )();
