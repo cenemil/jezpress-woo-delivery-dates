@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -21,11 +21,13 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 * Delivery fields hidden until a shipping address is entered
 * Carrier management — add, edit, and map carriers to WooCommerce shipping zones
 * Schedule Definitions — configure named weekly recurring patterns with per-day time slots; slots are created on-demand (no manual generation required)
+* Holidays — define named date ranges that block delivery availability, scoped to all carriers or specific carriers
+* Calendar view — month, week, and day toggles; visualise delivery orders and holidays together in the admin
 * Max orders per slot with real-time booking count tracking
 * Time slot labels displayed as "From HH:MM to HH:MM" format
 * Delivery date shown in the admin order page, customer order detail page, and all WooCommerce emails
 * Delivery Date column in the WooCommerce orders list
-* Configurable settings: maximum future days, required/optional, checkout section label
+* Configurable settings: maximum future days, required/optional, checkout section label, custom field labels, week start day
 * JezPress license and auto-update integration
 
 **Note:** WooCommerce Blocks checkout is not supported. Requires the classic checkout shortcode.
@@ -40,6 +42,17 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.2.0 =
+* Added Holidays management — create named date ranges that block delivery availability; scope to all carriers or specific carriers. Holidays are enforced at checkout and displayed in the new Calendar view.
+* Added Calendar tab — full admin calendar with month, week, and day views. Delivery orders are shown as colour-coded pills per day. Holidays are overlaid with a distinct amber colour scheme.
+* Available delivery dates now enforce per-schedule cutoff times for today — today is selectable if at least one matching schedule's cutoff has not yet passed.
+* Checkout datepicker now respects the Week Starts On setting (Sunday or Monday).
+* Checkout section heading is now optional — leave the Checkout Section Label blank to hide the heading entirely.
+* Added Delivery Date Field Label and Time Slot Field Label settings for custom checkout copy.
+* Time slot row is now hidden at checkout until a date is selected, and hidden again when no slots are available for the chosen date.
+* Earliest selectable date at checkout is now today (when a valid cutoff window exists), previously always tomorrow.
+* DB schema upgraded to version 6 (adds `{prefix}jwdd_holidays` table).
 
 = 1.1.0 =
 * Added Schedule Definitions — named weekly recurring patterns with per-day time slots and order cutoff times.

@@ -153,6 +153,7 @@ class JWDD_Checkout {
 			'available_dates' => $available,
 			'max_future_days' => $max_future_days,
 			'has_address'     => $has_address,
+			'week_start'      => isset( $settings['week_start'] ) ? (int) $settings['week_start'] : 0,
 			'i18n'            => array(
 				'select_date'      => __( 'Select a date...', 'jezpress-woo-delivery-dates' ),
 				'select_slot'      => __( 'Select a time slot...', 'jezpress-woo-delivery-dates' ),
@@ -173,19 +174,23 @@ class JWDD_Checkout {
 	 * @return void
 	 */
 	public function render_fields( $checkout ) {
-		$settings = get_option( 'jwdd_settings', array() );
-		$label    = ! empty( $settings['checkout_label'] ) ? $settings['checkout_label'] : __( 'Select Delivery Date & Time', 'jezpress-woo-delivery-dates' );
-		$required = ! empty( $settings['required'] );
+		$settings   = get_option( 'jwdd_settings', array() );
+		$label      = isset( $settings['checkout_label'] ) ? trim( $settings['checkout_label'] ) : '';
+		$date_label = ! empty( $settings['date_label'] ) ? $settings['date_label'] : __( 'Delivery Date', 'jezpress-woo-delivery-dates' );
+		$slot_label = ! empty( $settings['slot_label'] ) ? $settings['slot_label'] : __( 'Delivery Time Slot', 'jezpress-woo-delivery-dates' );
+		$required   = ! empty( $settings['required'] );
 
 		echo '<div id="jwdd-delivery-dates-wrap" class="jwdd-checkout-section">';
-		echo '<h3>' . esc_html( $label ) . '</h3>';
+		if ( '' !== $label ) {
+			echo '<h3>' . esc_html( $label ) . '</h3>';
+		}
 
 		// Status message — JS shows this when address is missing, loading, or no dates.
 		echo '<p id="jwdd-date-status" class="jwdd-date-status" style="display:none;"></p>';
 
 		// Date selector — calendar picker (JS shows/hides based on address state).
 		echo '<p class="form-row form-row-wide jwdd-date-row" style="display:none;">';
-		echo '<label for="jwdd_delivery_date_picker">' . esc_html__( 'Delivery Date', 'jezpress-woo-delivery-dates' );
+		echo '<label for="jwdd_delivery_date_picker">' . esc_html( $date_label );
 		if ( $required ) {
 			echo ' <abbr class="required" title="required">*</abbr>';
 		}
@@ -197,7 +202,7 @@ class JWDD_Checkout {
 
 		// Time slot selector — populated via AJAX on date selection.
 		echo '<p class="form-row form-row-wide jwdd-slot-row" style="display:none;">';
-		echo '<label for="jwdd_time_slot_id">' . esc_html__( 'Delivery Time Slot', 'jezpress-woo-delivery-dates' );
+		echo '<label for="jwdd_time_slot_id">' . esc_html( $slot_label );
 		if ( $required ) {
 			echo ' <abbr class="required" title="required">*</abbr>';
 		}
@@ -256,23 +261,28 @@ class JWDD_Checkout {
 			return;
 		}
 
-		if ( ! $slot_id ) {
-			wc_add_notice( __( 'Please select a delivery time slot.', 'jezpress-woo-delivery-dates' ), 'error' );
-			return;
-		}
-
-		// Verify the selected slot is still available (race condition protection).
+		// Check available slots for the selected date.
 		$slots = JWDD_Schedules::get_slots_for_date( $date, self::get_applicable_carrier_ids() );
-		$valid = false;
-		foreach ( $slots as $slot ) {
-			if ( (int) $slot->id === $slot_id ) {
-				$valid = true;
-				break;
-			}
-		}
 
-		if ( ! $valid ) {
-			wc_add_notice( __( 'The selected delivery time slot is no longer available. Please choose another.', 'jezpress-woo-delivery-dates' ), 'error' );
+		// Time slot is only required when slots actually exist for the date.
+		if ( ! empty( $slots ) ) {
+			if ( ! $slot_id ) {
+				wc_add_notice( __( 'Please select a delivery time slot.', 'jezpress-woo-delivery-dates' ), 'error' );
+				return;
+			}
+
+			// Verify the selected slot is still available (race condition protection).
+			$valid = false;
+			foreach ( $slots as $slot ) {
+				if ( (int) $slot->id === $slot_id ) {
+					$valid = true;
+					break;
+				}
+			}
+
+			if ( ! $valid ) {
+				wc_add_notice( __( 'The selected delivery time slot is no longer available. Please choose another.', 'jezpress-woo-delivery-dates' ), 'error' );
+			}
 		}
 	}
 

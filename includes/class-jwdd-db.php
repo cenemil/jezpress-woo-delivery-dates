@@ -17,7 +17,7 @@ class JWDD_DB {
 	/**
 	 * Current DB schema version. Increment when table structure changes.
 	 */
-	const DB_VERSION = 4;
+	const DB_VERSION = 6;
 
 	/**
 	 * Create or upgrade custom tables. Safe to call repeatedly (uses dbDelta).
@@ -80,9 +80,27 @@ class JWDD_DB {
 			KEY is_active (is_active)
 		) $charset_collate;";
 
+		// Holidays (named date ranges that block delivery).
+		// carrier_ids: JSON array of carrier IDs. Empty array = applies to all carriers.
+		$sql_holidays = "CREATE TABLE {$wpdb->prefix}jwdd_holidays (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			name varchar(100) NOT NULL DEFAULT '',
+			carrier_ids text NOT NULL,
+			date_from date NOT NULL,
+			date_to date NOT NULL,
+			is_active tinyint(1) NOT NULL DEFAULT 1,
+			created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			updated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			PRIMARY KEY (id),
+			KEY date_from (date_from),
+			KEY date_to (date_to),
+			KEY is_active (is_active)
+		) $charset_collate;";
+
 		dbDelta( $sql_carriers );
 		dbDelta( $sql_schedules );
 		dbDelta( $sql_schedule_defs );
+		dbDelta( $sql_holidays );
 
 		update_option( 'jwdd_db_version', self::DB_VERSION );
 	}
@@ -115,5 +133,15 @@ class JWDD_DB {
 	public static function schedule_defs_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'jwdd_schedule_defs';
+	}
+
+	/**
+	 * Get the holidays table name.
+	 *
+	 * @return string
+	 */
+	public static function holidays_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'jwdd_holidays';
 	}
 }

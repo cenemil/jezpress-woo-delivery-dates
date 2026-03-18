@@ -60,33 +60,70 @@ class JWDD_Schedules {
 			return array();
 		}
 
-		// Build the set of days-of-week (0=Sun … 6=Sat) that have at least one slot.
-		$active_dows = array();
+		// Build a map: day-of-week => array of cutoff times ('HH:MM' or '' = no cutoff).
+		$dow_cutoffs = array();
 		foreach ( $defs as $def ) {
 			$days = json_decode( $def->days_of_week, true ) ?: array();
 			foreach ( $days as $d ) {
-				if ( is_array( $d ) && isset( $d['day'] ) && ! empty( $d['slots'] ) ) {
-					$active_dows[ (int) $d['day'] ] = true;
+				if ( ! is_array( $d ) || ! isset( $d['day'] ) ) {
+					continue;
 				}
+				$dow    = (int) $d['day'];
+				$cutoff = ( isset( $d['cutoff'] ) && '' !== $d['cutoff'] ) ? $d['cutoff'] : '';
+				if ( ! isset( $dow_cutoffs[ $dow ] ) ) {
+					$dow_cutoffs[ $dow ] = array();
+				}
+				$dow_cutoffs[ $dow ][] = $cutoff;
 			}
 		}
 
-		if ( empty( $active_dows ) ) {
+		if ( empty( $dow_cutoffs ) ) {
 			return array();
 		}
 
-		// Walk the date window and collect matching dates.
-		$dates    = array();
-		$ts_start = strtotime( '+1 day' );
-		$ts_end   = strtotime( "+{$max_days} days" );
-		$current  = $ts_start;
+		// Walk the date window starting from today (WP timezone).
+		$now_wp     = current_datetime(); // DateTimeImmutable in WP timezone
+		$today_str  = $now_wp->format( 'Y-m-d' );
+		$current_hm = $now_wp->format( 'H:i' );
 
-		while ( $current <= $ts_end ) {
-			$dow = (int) gmdate( 'w', $current );
-			if ( isset( $active_dows[ $dow ] ) ) {
-				$dates[] = gmdate( 'Y-m-d', $current );
+		$dates   = array();
+		$current = new \DateTime( $today_str );
+		$end_dt  = ( new \DateTime( $today_str ) )->modify( "+{$max_days} days" );
+
+		while ( $current <= $end_dt ) {
+			$date_str = $current->format( 'Y-m-d' );
+			$dow      = (int) $current->format( 'w' );
+
+			if ( isset( $dow_cutoffs[ $dow ] ) ) {
+				$include = true;
+
+				// For today: only include if at least one def has no cutoff or a cutoff still in the future.
+				if ( $date_str === $today_str ) {
+					$include = false;
+					foreach ( $dow_cutoffs[ $dow ] as $cutoff ) {
+						if ( '' === $cutoff || $current_hm < $cutoff ) {
+							$include = true;
+							break;
+						}
+					}
+				}
+
+				if ( $include ) {
+					$dates[] = $date_str;
+				}
 			}
-			$current = strtotime( '+1 day', $current );
+
+			$current->modify( '+1 day' );
+		}
+
+		// Remove dates blocked by active holidays.
+		if ( ! empty( $dates ) ) {
+			$blocked = JWDD_Holidays::get_blocked_dates( $dates[0], end( $dates ), $carrier_ids );
+			if ( ! empty( $blocked ) ) {
+				$dates = array_values( array_filter( $dates, function ( $d ) use ( $blocked ) {
+					return ! isset( $blocked[ $d ] );
+				} ) );
+			}
 		}
 
 		return $dates;
@@ -109,6 +146,12 @@ class JWDD_Schedules {
 		global $wpdb;
 
 		if ( is_array( $carrier_ids ) && empty( $carrier_ids ) ) {
+			return array();
+		}
+
+		// Return nothing if this date is blocked by an active holiday.
+		$blocked = JWDD_Holidays::get_blocked_dates( $date, $date, $carrier_ids );
+		if ( isset( $blocked[ $date ] ) ) {
 			return array();
 		}
 
@@ -195,6 +238,15 @@ class JWDD_Schedules {
 		usort( $slots, function ( $a, $b ) {
 			return strcmp( $a->start_time, $b->start_time );
 		} );
+
+		// For today (WP timezone): remove slots whose start time has already passed.
+		$now_wp = current_datetime();
+		if ( $date === $now_wp->format( 'Y-m-d' ) ) {
+			$current_hm = $now_wp->format( 'H:i' );
+			$slots      = array_values( array_filter( $slots, function ( $slot ) use ( $current_hm ) {
+				return substr( $slot->start_time, 0, 5 ) > $current_hm;
+			} ) );
+		}
 
 		return $slots;
 	}

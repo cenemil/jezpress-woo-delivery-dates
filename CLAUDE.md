@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Function prefix:** `jwdd_`
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
-- **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`
-- **Current DB version:** `JWDD_DB::DB_VERSION = 4`
+- **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
+- **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
 - **WordPress:** 5.8+
@@ -26,12 +26,14 @@ jezpress-woo-delivery-dates/
 ├── readme.txt                         — Plugin readme
 ├── includes/
 │   ├── class-jwdd-db.php             — DB schema: create_tables(), DB_VERSION, table name helpers
-│   ├── class-jwdd-admin.php          — Singleton. Admin menu, 4 tabs, settings registration, script enqueue
+│   ├── class-jwdd-admin.php          — Singleton. Admin menu, 6 tabs, settings registration, script enqueue
 │   ├── class-jwdd-carriers.php       — Carrier CRUD + AJAX handlers
 │   ├── class-jwdd-schedule-defs.php  — Schedule Definition CRUD + AJAX handlers (since v1.1.0)
 │   ├── class-jwdd-schedules.php      — Schedule slot on-demand creation, checkout AJAX (nopriv)
 │   ├── class-jwdd-checkout.php       — Checkout fields, validation, order meta save, booked_count
 │   ├── class-jwdd-order.php          — Admin order display, email display, order list column
+│   ├── class-jwdd-holidays.php       — Holiday date ranges CRUD + AJAX handlers + blocked-dates query (since v1.2.0)
+│   ├── class-jwdd-calendar.php       — Admin Calendar tab AJAX; orders + holidays grouped by date (since v1.2.0)
 │   ├── class-jwdd-license.php        — Singleton. JezPress license (adapted from JWOR pattern)
 │   └── class-jwdd-updater.php        — JezPress update server integration (adapted from JWOR pattern)
 └── assets/
@@ -69,10 +71,14 @@ Slot labels are always auto-generated as `From g:ia to g:ia` from `start_time`/`
 ```
 `day` is 0 (Sun)–6 (Sat). `cutoff` is an `HH:MM` order cutoff time or empty.
 
+> **Note:** The `cutoff` field is stored in the JSON but is **not yet enforced** by `get_available_dates()` or `get_slots_for_date()`. It is scaffolding for a future feature — do not rely on it to hide dates past the cutoff time.
+
 **No manual slot generation is required.** `JWDD_Schedules::get_slots_for_date()` reads active schedule definitions for the date's day-of-week and creates `{prefix}jwdd_schedules` rows on-demand (keyed by `schedule_def_id + schedule_date + start_time`). This gives each slot a real DB row ID for order meta and capacity tracking, while keeping slot data always in sync with the definition config.
 
+> **Capacity note:** On-demand created slot rows always get `max_orders = 0` (unlimited). The schedule definition JSON has no `max_orders` field. To cap bookings for a specific slot, update the `{prefix}jwdd_schedules` row directly (e.g. via the `jwdd_save_schedule` AJAX action) after the row has been created on first access.
+
 ## Available Dates Derivation
-`JWDD_Schedules::get_available_dates()` does **not** query pre-generated slot rows. It reads active schedule definitions, collects which days-of-week have at least one slot configured, then walks the date window (`+1 day` to `+max_future_days`) and returns every matching date. This means dates are always live — changing a schedule definition takes effect immediately.
+`JWDD_Schedules::get_available_dates()` does **not** query pre-generated slot rows. It reads active schedule definitions, builds a `dow_cutoffs` map (day-of-week → array of cutoff strings), then walks the date window from **today** to `+max_future_days`. A date is included if any active def covers that day-of-week. For **today only**, the cutoff is enforced: today is included only if at least one def for today's DOW has no cutoff set or has a cutoff time that hasn't passed yet (compared against `current_time('H:i')`). Future dates are never cutoff-filtered. This means dates are always live — changing a schedule definition takes effect immediately.
 
 ## Boot Sequence
 
@@ -83,7 +89,7 @@ Slot labels are always auto-generated as `From g:ia to g:ia` from `start_time`/`
 2. Requires all remaining class files
 3. Runs `JWDD_DB::create_tables()` if `jwdd_db_version` option is behind `JWDD_DB::DB_VERSION`
 4. Calls `JWDD_License::get_instance()->init()`
-5. Instantiates `JWDD_Admin::get_instance()`, `new JWDD_Carriers()`, `new JWDD_Schedule_Defs()`, `new JWDD_Schedules()`, `new JWDD_Checkout()`, `new JWDD_Order()`
+5. Instantiates `JWDD_Admin::get_instance()`, `new JWDD_Carriers()`, `new JWDD_Schedule_Defs()`, `new JWDD_Schedules()`, `new JWDD_Holidays()`, `new JWDD_Checkout()`, `new JWDD_Order()`, `new JWDD_Calendar()`
 
 ## Database Schema
 
@@ -123,16 +129,30 @@ Slot labels are always auto-generated as `From g:ia to g:ia` from `start_time`/`
 | is_active | tinyint(1) | 1=active |
 | created_at / updated_at | datetime | |
 
+### `{prefix}jwdd_holidays`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | bigint UNSIGNED | PK auto-increment |
+| name | varchar(100) | Display name for the holiday |
+| carrier_ids | text | JSON array of carrier IDs. `[]` = applies to all carriers |
+| date_from | date | First blocked date (inclusive) |
+| date_to | date | Last blocked date (inclusive) |
+| is_active | tinyint(1) | 1=active |
+| created_at / updated_at | datetime | |
+
 ## Settings (`jwdd_settings` option)
 ```php
 [
   'enabled'         => 1,           // Show fields at checkout
   'required'        => 1,           // Required to place order
-  'max_future_days' => 30,          // Latest selectable date offset (tomorrow + N days)
-  'checkout_label'  => 'Select Delivery Date & Time',
+  'max_future_days' => 30,          // Latest selectable date offset (today + N days)
+  'checkout_label'  => 'Select Delivery Date & Time',  // Section heading; blank = hidden
+  'date_label'      => '',          // Field label for date picker; blank = "Delivery Date"
+  'slot_label'      => '',          // Field label for time slot; blank = "Delivery Time Slot"
+  'week_start'      => 0,           // 0 = Sunday, 1 = Monday (applied to checkout datepicker and admin calendar)
 ]
 ```
-Earliest selectable date is always tomorrow (hardcoded in `get_available_dates()`). Carrier selection at checkout is not shown; carrier is derived from the selected slot's `carrier_id`.
+Earliest selectable date is today. Today is included only when a matching def's cutoff hasn't passed (or no cutoff is set); otherwise the first available date is tomorrow or later. Carrier selection at checkout is not shown; carrier is derived from the selected slot's `carrier_id`.
 
 ## Admin Page
 
@@ -143,9 +163,11 @@ Located under **WooCommerce > Delivery Dates** (page slug: `jwdd-delivery-dates`
 | Settings | `?tab=settings` (default) | Plugin enable/disable, checkout options |
 | Carriers | `?tab=carriers` | Carrier list or add/edit form (`action=add|edit&carrier_id=N`) |
 | Schedules | `?tab=schedules` | Schedule definition list or add/edit def (`action=add|edit&def_id=N`) |
+| Holidays | `?tab=holidays` | Holiday list or add/edit form (`action=add|edit&holiday_id=N`) |
+| Calendar | `?tab=calendar` | Month/week/day calendar of delivery orders + holiday overlays |
 | License | `?tab=license` | License activate/deactivate form |
 
-The Schedules tab manages **schedule definitions** (named recurring patterns). The carrier form includes a "Shipping Zones & Estimated Delivery" section to map WC shipping zones to estimated delivery days.
+The Schedules tab manages **schedule definitions** (named recurring patterns). The carrier form includes a "Shipping Zones & Estimated Delivery" section to map WC shipping zones to estimated delivery days. The Holidays tab manages named date ranges that block delivery availability per-carrier or globally.
 
 Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only the License tab renders.
 
@@ -162,6 +184,9 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 | `jwdd_save_schedule` | `JWDD_Schedules::ajax_save_schedule()` | Insert or update a single schedule slot |
 | `jwdd_delete_schedule` | `JWDD_Schedules::ajax_delete_schedule()` | Delete a schedule slot |
 | `jwdd_get_schedules` | `JWDD_Schedules::ajax_get_schedules()` | Return filtered schedules as JSON (filter by `carrier_id`, `date_from`, `date_to`, `def_id`) |
+| `jwdd_save_holiday` | `JWDD_Holidays::ajax_save()` | Insert or update a holiday date range |
+| `jwdd_delete_holiday` | `JWDD_Holidays::ajax_delete()` | Delete a holiday |
+| `jwdd_get_calendar_orders` | `JWDD_Calendar::ajax_get_calendar_orders()` | Return orders + holidays grouped by date for a view/date window; POST: `view`, `date`, `week_start` |
 
 ### Public (nonce `jwdd_checkout_nonce`, nopriv)
 | Action | Handler | Description |
@@ -193,6 +218,40 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 
 ## Order Display
 `JWDD_Order` displays delivery details in three places: admin order detail page (`woocommerce_admin_order_data_after_billing_address`), customer My Account order detail (`woocommerce_order_details_after_order_table`), and order emails (`woocommerce_email_after_order_table`). It also adds a **Delivery Date** column to the orders list table, inserted after `order_status`.
+
+## Holidays (since v1.2.0)
+
+`JWDD_Holidays` manages named date ranges that block delivery availability at checkout. Key methods:
+- `get_all()` — all holidays ordered by `date_from`
+- `get_by_id( $id )` — single holiday object
+- `get_blocked_dates( $date_from, $date_to, $carrier_ids )` — returns a `date => true` map of blocked dates for a range, optionally scoped to specific carrier IDs. An empty `carrier_ids` array on a holiday means it applies to ALL carriers.
+- `decode_carrier_ids( $json )` — decode the `carrier_ids` JSON field to `int[]`
+
+Holidays are checked by `JWDD_Schedules::get_available_dates()` — blocked dates are excluded from the available dates returned to checkout.
+
+## Admin Calendar (since v1.2.0)
+
+`JWDD_Calendar` provides the Calendar tab under WooCommerce > Delivery Dates. The tab renders a shell (toolbar + empty grid); JavaScript fetches data via `jwdd_get_calendar_orders` AJAX on init and on navigation.
+
+**Views:** month (7-column CSS grid with leading/trailing month padding), week (same grid, single row, taller cells), day (flat list grouped by time slot).
+
+**Data returned by `ajax_get_calendar_orders`:**
+```json
+{
+  "view": "month",
+  "range_start": "2026-03-01",
+  "range_end": "2026-03-31",
+  "period_label": "March 2026",
+  "prev_date": "2026-02-01",
+  "next_date": "2026-04-01",
+  "today": "2026-03-18",
+  "week_start": 1,
+  "orders": { "2026-03-20": [{ "id": 123, "number": "123", "status": "processing", "status_label": "Processing", "slot_label": "From 9:00am to 12:00pm", "edit_url": "..." }] },
+  "holidays": { "2026-03-25": [{ "id": 1, "name": "Good Friday", "carriers": "All Carriers", "edit_url": "..." }] }
+}
+```
+
+**Color schemes:** delivery order pills use blue/status-colour left-border accent; holiday pills use amber/orange (`#f97316` border) and are rendered above order pills in each day cell.
 
 ## JezPress Platform
 

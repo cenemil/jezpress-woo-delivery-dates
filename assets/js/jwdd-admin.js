@@ -485,6 +485,434 @@
 	}
 
 	// -------------------------------------------------------------------------
+	// HOLIDAYS TAB
+	// -------------------------------------------------------------------------
+
+	if ( context === 'holidays_list' ) {
+		bindHolidayListActions();
+	}
+
+	function bindHolidayListActions() {
+		document.querySelectorAll( '.jwdd-delete-holiday' ).forEach( function ( btn ) {
+			btn.onclick = function () {
+				if ( ! confirm( i18n.confirm_delete_holiday || 'Delete this holiday? This cannot be undone.' ) ) {
+					return;
+				}
+
+				btn.textContent = i18n.deleting || 'Deleting...';
+				btn.disabled    = true;
+
+				post( 'jwdd_delete_holiday', { id: btn.dataset.id }, function ( res ) {
+					if ( res.success ) {
+						var row = document.getElementById( 'jwdd-holiday-row-' + btn.dataset.id );
+						if ( row ) row.remove();
+						var feedback = document.getElementById( 'jwdd-holidays-feedback' );
+						showFeedback( feedback, res.data.message, 'success' );
+						var tbody = document.getElementById( 'jwdd-holidays-tbody' );
+						if ( tbody && tbody.querySelectorAll( 'tr' ).length === 0 ) {
+							tbody.innerHTML = '<tr id="jwdd-holidays-empty"><td colspan="6">' + ( i18n.no_holidays || 'No holidays yet.' ) + '</td></tr>';
+						}
+					} else {
+						btn.textContent = 'Delete';
+						btn.disabled    = false;
+						showFeedback( document.getElementById( 'jwdd-holidays-feedback' ), res.data.message || i18n.error, 'error' );
+					}
+				} );
+			};
+		} );
+	}
+
+	if ( context === 'holidays_add' || context === 'holidays_edit' ) {
+		initHolidayForm();
+	}
+
+	function initHolidayForm() {
+		var saveBtn  = document.getElementById( 'jwdd-save-holiday' );
+		var feedback = document.getElementById( 'jwdd-holiday-feedback' );
+
+		if ( ! saveBtn ) return;
+
+		saveBtn.addEventListener( 'click', function () {
+			var nameEl     = document.getElementById( 'jwdd_holiday_name' );
+			var dateFromEl = document.getElementById( 'jwdd_holiday_date_from' );
+			var dateToEl   = document.getElementById( 'jwdd_holiday_date_to' );
+			var activeEl   = document.getElementById( 'jwdd_holiday_is_active' );
+			var idEl       = document.getElementById( 'jwdd_holiday_id' );
+
+			var name     = nameEl     ? nameEl.value.trim()     : '';
+			var dateFrom = dateFromEl ? dateFromEl.value.trim() : '';
+			var dateTo   = dateToEl   ? dateToEl.value.trim()   : '';
+
+			if ( ! name ) {
+				showFeedback( feedback, 'Holiday name is required.', 'error' );
+				return;
+			}
+			if ( ! dateFrom || ! dateTo ) {
+				showFeedback( feedback, 'From and To dates are required.', 'error' );
+				return;
+			}
+			if ( dateTo < dateFrom ) {
+				showFeedback( feedback, 'To date must be on or after From date.', 'error' );
+				return;
+			}
+
+			// Collect selected carrier IDs (empty = all carriers).
+			var carrierIds  = [];
+			var carriersEl  = document.getElementById( 'jwdd-holiday-carriers' );
+			if ( carriersEl ) {
+				Array.from( carriersEl.selectedOptions ).forEach( function ( opt ) {
+					carrierIds.push( parseInt( opt.value, 10 ) );
+				} );
+			}
+
+			saveBtn.textContent = i18n.saving || 'Saving...';
+			saveBtn.disabled    = true;
+
+			post( 'jwdd_save_holiday', {
+				id:               idEl ? idEl.value : '0',
+				name:             name,
+				carrier_ids_json: JSON.stringify( carrierIds ),
+				date_from:        dateFrom,
+				date_to:          dateTo,
+				is_active:        activeEl && activeEl.checked ? '1' : '0',
+			}, function ( res ) {
+				saveBtn.disabled = false;
+
+				if ( res.success ) {
+					if ( context === 'holidays_add' && res.data.id ) {
+						window.location.href = ( cfg.holiday_edit_base_url || '' ) + '&holiday_id=' + res.data.id;
+					} else {
+						saveBtn.textContent = 'Update Holiday';
+						showFeedback( feedback, res.data.message, 'success' );
+					}
+				} else {
+					saveBtn.textContent = context === 'holidays_add' ? 'Add Holiday' : 'Update Holiday';
+					showFeedback( feedback, res.data.message || i18n.error, 'error' );
+				}
+			} );
+		} );
+	}
+
+	// -------------------------------------------------------------------------
+	// CALENDAR TAB
+	// -------------------------------------------------------------------------
+
+	if ( context === 'calendar' ) {
+		initCalendar();
+	}
+
+	function initCalendar() {
+		var gridEl      = document.getElementById( 'jwdd-cal-grid' );
+		var periodEl    = document.getElementById( 'jwdd-cal-period' );
+		var prevBtn     = document.getElementById( 'jwdd-cal-prev' );
+		var nextBtn     = document.getElementById( 'jwdd-cal-next' );
+		var toggleBtns  = document.querySelectorAll( '.jwdd-cal-view-toggle' );
+		var weekStart   = parseInt( cfg.week_start || '0', 10 );
+
+		var state = {
+			view: 'month',
+			date: cfg.today || calTodayStr(),
+			data: null,
+		};
+
+		// Day name arrays (Sun=0 index).
+		var DAY_ABBR = [ 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat' ];
+
+		// Initial fetch.
+		fetchCalendar();
+
+		// View toggle buttons.
+		toggleBtns.forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				if ( btn.dataset.view === state.view ) return;
+				state.view = btn.dataset.view;
+				// For day view, navigate to today if no specific day is set.
+				if ( 'day' === state.view && state.data ) {
+					state.date = state.data.today || state.date;
+				}
+				fetchCalendar();
+			} );
+		} );
+
+		// Prev / next navigation.
+		prevBtn && prevBtn.addEventListener( 'click', function () {
+			if ( state.data ) state.date = state.data.prev_date;
+			fetchCalendar();
+		} );
+
+		nextBtn && nextBtn.addEventListener( 'click', function () {
+			if ( state.data ) state.date = state.data.next_date;
+			fetchCalendar();
+		} );
+
+		function fetchCalendar() {
+			if ( gridEl ) {
+				gridEl.innerHTML =
+					'<div class="jwdd-cal-loading">'
+					+ '<span class="spinner is-active" style="float:none; margin:0 4px 0 0;"></span>'
+					+ 'Loading\u2026'
+					+ '</div>';
+			}
+			post( 'jwdd_get_calendar_orders', {
+				view:       state.view,
+				date:       state.date,
+				week_start: weekStart,
+			}, function ( res ) {
+				if ( res.success ) {
+					state.data = res.data;
+					state.view = res.data.view;
+					state.date = res.data.range_start;
+					renderCalendar( res.data );
+				} else {
+					if ( gridEl ) {
+						gridEl.innerHTML = '<p class="jwdd-cal-error">Failed to load calendar data.</p>';
+					}
+				}
+			} );
+		}
+
+		function renderCalendar( data ) {
+			if ( periodEl ) periodEl.textContent = data.period_label;
+
+			toggleBtns.forEach( function ( btn ) {
+				btn.classList.toggle( 'active', btn.dataset.view === data.view );
+			} );
+
+			if ( ! gridEl ) return;
+
+			if ( 'month' === data.view ) {
+				gridEl.innerHTML = renderMonthGrid( data );
+			} else if ( 'week' === data.view ) {
+				gridEl.innerHTML = renderWeekGrid( data );
+			} else {
+				gridEl.innerHTML = renderDayGrid( data );
+			}
+		}
+
+		// Returns ordered array of day-of-week indices starting at weekStart.
+		function getWeekDayOrder() {
+			var days = [];
+			for ( var i = 0; i < 7; i++ ) {
+				days.push( ( weekStart + i ) % 7 );
+			}
+			return days;
+		}
+
+		function renderHeaderRow() {
+			var days = getWeekDayOrder();
+			var html = '<div class="jwdd-cal-header-row">';
+			days.forEach( function ( d ) {
+				html += '<div class="jwdd-cal-header-cell">' + escHtml( DAY_ABBR[ d ] ) + '</div>';
+			} );
+			html += '</div>';
+			return html;
+		}
+
+		function renderMonthGrid( data ) {
+			var today      = data.today;
+			var orders     = data.orders    || {};
+			var holidays   = data.holidays  || {};
+			var parts      = data.range_start.split( '-' );
+			var year       = parseInt( parts[0], 10 );
+			var month      = parseInt( parts[1], 10 ) - 1; // 0-indexed
+			var daysInMonth = new Date( year, month + 1, 0 ).getDate();
+			var firstDOW   = new Date( year, month, 1 ).getDay(); // 0=Sun
+			var leading    = ( firstDOW - weekStart + 7 ) % 7;
+			var prevLast   = new Date( year, month, 0 ).getDate();
+
+			var html = '<div class="jwdd-cal-month">' + renderHeaderRow();
+			html += '<div class="jwdd-cal-body">';
+
+			// Leading cells from previous month.
+			for ( var p = leading - 1; p >= 0; p-- ) {
+				html += '<div class="jwdd-cal-cell jwdd-cal-cell-other">'
+					+ '<span class="jwdd-cal-day-num">' + ( prevLast - p ) + '</span>'
+					+ '</div>';
+			}
+
+			// Current month days.
+			for ( var day = 1; day <= daysInMonth; day++ ) {
+				var dateStr      = year + '-' + calPad( month + 1 ) + '-' + calPad( day );
+				var isToday      = ( dateStr === today );
+				var isPast       = ( dateStr < today );
+				var dayOrders    = orders[ dateStr ]   || [];
+				var dayHolidays  = holidays[ dateStr ] || [];
+
+				var cls = 'jwdd-cal-cell';
+				if ( isToday ) cls += ' jwdd-cal-cell-today';
+				else if ( isPast ) cls += ' jwdd-cal-cell-past';
+				if ( dayHolidays.length ) cls += ' jwdd-cal-cell-has-holiday';
+
+				html += '<div class="' + cls + '">'
+					+ '<span class="jwdd-cal-day-num">' + day + '</span>'
+					+ renderHolidayPills( dayHolidays )
+					+ renderOrderPills( dayOrders )
+					+ '</div>';
+			}
+
+			// Trailing cells to fill last row.
+			var total    = leading + daysInMonth;
+			var trailing = ( 7 - ( total % 7 ) ) % 7;
+			for ( var t = 1; t <= trailing; t++ ) {
+				html += '<div class="jwdd-cal-cell jwdd-cal-cell-other">'
+					+ '<span class="jwdd-cal-day-num">' + t + '</span>'
+					+ '</div>';
+			}
+
+			html += '</div></div>'; // .jwdd-cal-body + .jwdd-cal-month
+			return html;
+		}
+
+		function renderWeekGrid( data ) {
+			var today      = data.today;
+			var orders     = data.orders   || {};
+			var holidays   = data.holidays || {};
+			var sp         = data.range_start.split( '-' );
+			var startDate  = new Date( parseInt( sp[0], 10 ), parseInt( sp[1], 10 ) - 1, parseInt( sp[2], 10 ) );
+			var weekDayOrder = getWeekDayOrder();
+
+			var html = '<div class="jwdd-cal-week">' + renderHeaderRow();
+			html += '<div class="jwdd-cal-body jwdd-cal-week-body">';
+
+			weekDayOrder.forEach( function ( dow, idx ) {
+				var d            = new Date( startDate );
+				d.setDate( d.getDate() + idx );
+				var dateStr      = calFormatYMD( d );
+				var isToday      = ( dateStr === today );
+				var isPast       = ( dateStr < today );
+				var dayOrders    = orders[ dateStr ]   || [];
+				var dayHolidays  = holidays[ dateStr ] || [];
+
+				var cls = 'jwdd-cal-cell jwdd-cal-cell-week';
+				if ( isToday ) cls += ' jwdd-cal-cell-today';
+				else if ( isPast ) cls += ' jwdd-cal-cell-past';
+				if ( dayHolidays.length ) cls += ' jwdd-cal-cell-has-holiday';
+
+				html += '<div class="' + cls + '">'
+					+ '<span class="jwdd-cal-day-num">' + DAY_ABBR[ d.getDay() ] + ' ' + d.getDate() + '</span>'
+					+ renderHolidayPills( dayHolidays )
+					+ renderOrderPills( dayOrders )
+					+ '</div>';
+			} );
+
+			html += '</div></div>'; // .jwdd-cal-week-body + .jwdd-cal-week
+			return html;
+		}
+
+		function renderDayGrid( data ) {
+			var dateStr     = data.range_start;
+			var orders      = data.orders   || {};
+			var holidays    = data.holidays || {};
+			var dayOrders   = orders[ dateStr ]   || [];
+			var dayHolidays = holidays[ dateStr ] || [];
+
+			var html = '<div class="jwdd-cal-day">';
+
+			// Holiday block — rendered first, above the order slots.
+			if ( dayHolidays.length ) {
+				html += '<div class="jwdd-cal-day-holidays">';
+				html += '<h4 class="jwdd-cal-day-holidays-heading">Holidays</h4>';
+				html += '<ul class="jwdd-cal-day-holiday-list">';
+				dayHolidays.forEach( function ( h ) {
+					html += '<li class="jwdd-cal-day-holiday-item">'
+						+ '<a href="' + escAttr( h.edit_url ) + '" class="jwdd-cal-holiday-link">'
+						+ escHtml( h.name )
+						+ '</a>'
+						+ ' <span class="jwdd-cal-holiday-carriers">' + escHtml( h.carriers ) + '</span>'
+						+ '</li>';
+				} );
+				html += '</ul></div>'; // .jwdd-cal-day-holiday-list + .jwdd-cal-day-holidays
+			}
+
+			// Delivery order slots.
+			if ( ! dayOrders.length ) {
+				html += '<p class="jwdd-cal-no-orders">'
+					+ ( dayHolidays.length ? 'No deliveries scheduled (holiday).' : 'No deliveries scheduled for this day.' )
+					+ '</p>';
+			} else {
+				// Group by slot_label.
+				var bySlot    = {};
+				var slotOrder = [];
+				dayOrders.forEach( function ( o ) {
+					var key = o.slot_label || '';
+					if ( ! bySlot[ key ] ) {
+						bySlot[ key ] = [];
+						slotOrder.push( key );
+					}
+					bySlot[ key ].push( o );
+				} );
+
+				slotOrder.forEach( function ( slotLabel ) {
+					html += '<div class="jwdd-cal-day-slot">';
+					html += '<h4 class="jwdd-cal-slot-label">'
+						+ escHtml( slotLabel || 'Unassigned time slot' )
+						+ ' <span class="jwdd-cal-slot-count">'
+						+ bySlot[ slotLabel ].length + ' order' + ( bySlot[ slotLabel ].length !== 1 ? 's' : '' )
+						+ '</span></h4>';
+					html += '<ul class="jwdd-cal-day-orders">';
+					bySlot[ slotLabel ].forEach( function ( o ) {
+						html += '<li>'
+							+ '<a href="' + escAttr( o.edit_url ) + '" class="jwdd-cal-order-link">'
+							+ 'Delivery day for Order #' + escHtml( String( o.number ) )
+							+ '</a>'
+							+ ' <span class="jwdd-cal-status jwdd-cal-status-' + escAttr( o.status ) + '">'
+							+ escHtml( o.status_label )
+							+ '</span>'
+							+ '</li>';
+					} );
+					html += '</ul></div>'; // .jwdd-cal-day-orders + .jwdd-cal-day-slot
+				} );
+			}
+
+			html += '</div>'; // .jwdd-cal-day
+			return html;
+		}
+
+		function renderOrderPills( orders ) {
+			if ( ! orders.length ) return '';
+			var html = '<div class="jwdd-cal-orders">';
+			orders.forEach( function ( o ) {
+				var title = 'Order #' + o.number
+					+ ( o.slot_label ? ' \u2014 ' + o.slot_label : '' )
+					+ ' (' + o.status_label + ')';
+				html += '<a href="' + escAttr( o.edit_url ) + '"'
+					+ ' class="jwdd-cal-order-pill jwdd-cal-order-' + escAttr( o.status ) + '"'
+					+ ' title="' + escAttr( title ) + '">'
+					+ 'Delivery day for Order #' + escHtml( String( o.number ) )
+					+ '</a>';
+			} );
+			html += '</div>';
+			return html;
+		}
+
+		function renderHolidayPills( holidays ) {
+			if ( ! holidays.length ) return '';
+			var html = '<div class="jwdd-cal-holiday-pills">';
+			holidays.forEach( function ( h ) {
+				html += '<a href="' + escAttr( h.edit_url ) + '"'
+					+ ' class="jwdd-cal-holiday-pill"'
+					+ ' title="' + escAttr( h.name + ' \u2014 ' + h.carriers ) + '">'
+					+ escHtml( h.name )
+					+ '</a>';
+			} );
+			html += '</div>';
+			return html;
+		}
+
+		function calTodayStr() {
+			return calFormatYMD( new Date() );
+		}
+
+		function calFormatYMD( d ) {
+			return d.getFullYear() + '-' + calPad( d.getMonth() + 1 ) + '-' + calPad( d.getDate() );
+		}
+
+		function calPad( n ) {
+			return String( n ).padStart( 2, '0' );
+		}
+	}
+
+	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
 

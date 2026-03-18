@@ -82,6 +82,9 @@ class JWDD_Admin {
 			'required'        => ! empty( $input['required'] ) ? 1 : 0,
 			'max_future_days' => isset( $input['max_future_days'] ) ? absint( $input['max_future_days'] ) : 30,
 			'checkout_label'  => isset( $input['checkout_label'] ) ? sanitize_text_field( $input['checkout_label'] ) : 'Select Delivery Date & Time',
+			'week_start'      => isset( $input['week_start'] ) && '1' === (string) $input['week_start'] ? 1 : 0,
+			'date_label'      => isset( $input['date_label'] ) ? sanitize_text_field( $input['date_label'] ) : '',
+			'slot_label'      => isset( $input['slot_label'] ) ? sanitize_text_field( $input['slot_label'] ) : '',
 		);
 	}
 
@@ -117,6 +120,7 @@ class JWDD_Admin {
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
 		$def_id     = isset( $_GET['def_id'] )     ? absint( $_GET['def_id'] )     : 0;
 		$carrier_id = isset( $_GET['carrier_id'] ) ? absint( $_GET['carrier_id'] ) : 0;
+		$holiday_id = isset( $_GET['holiday_id'] ) ? absint( $_GET['holiday_id'] ) : 0;
 
 		$context = 'other';
 		if ( 'schedules' === $tab ) {
@@ -135,6 +139,16 @@ class JWDD_Admin {
 			} else {
 				$context = 'carriers_list';
 			}
+		} elseif ( 'holidays' === $tab ) {
+			if ( 'add' === $action ) {
+				$context = 'holidays_add';
+			} elseif ( 'edit' === $action && $holiday_id ) {
+				$context = 'holidays_edit';
+			} else {
+				$context = 'holidays_list';
+			}
+		} elseif ( 'calendar' === $tab ) {
+			$context = 'calendar';
 		}
 
 		// Build WooCommerce shipping zones list (for carrier form).
@@ -180,27 +194,36 @@ class JWDD_Admin {
 			}
 		}
 
+		$settings = get_option( 'jwdd_settings', array() );
+
 		wp_localize_script( 'jwdd-admin', 'jwdd_admin', array(
-			'ajaxurl'           => admin_url( 'admin-ajax.php' ),
-			'nonce'             => wp_create_nonce( 'jwdd_admin_nonce' ),
-			'carriers'          => $carriers,
-			'context'           => $context,
-			'def_id'            => $def_id,
+			'ajaxurl'              => admin_url( 'admin-ajax.php' ),
+			'nonce'                => wp_create_nonce( 'jwdd_admin_nonce' ),
+			'carriers'             => $carriers,
+			'context'              => $context,
+			'today'                => current_time( 'Y-m-d' ),
+			'week_start'           => (int) ( isset( $settings['week_start'] ) ? $settings['week_start'] : 0 ),
+			'def_id'               => $def_id,
 			'def_edit_base_url'    => admin_url( 'admin.php?page=jwdd-delivery-dates&tab=schedules&action=edit' ),
 			'schedule_list_url'    => admin_url( 'admin.php?page=jwdd-delivery-dates&tab=schedules' ),
 			'carrier_id'           => $carrier_id,
 			'carrier_list_url'     => admin_url( 'admin.php?page=jwdd-delivery-dates&tab=carriers' ),
+			'holiday_id'           => $holiday_id,
+			'holiday_list_url'     => admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays' ),
+			'holiday_edit_base_url' => admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=edit' ),
 			'day_slots'            => $day_slots_data,
 			'wc_zones'             => $wc_zones_data,
 			'carrier_zones'        => $carrier_zones_data,
-			'i18n'              => array(
+			'i18n'                 => array(
 				'confirm_delete_carrier'  => __( 'Delete this carrier and all its schedules? This cannot be undone.', 'jezpress-woo-delivery-dates' ),
 				'confirm_delete_schedule' => __( 'Delete this schedule and all its slots? This cannot be undone.', 'jezpress-woo-delivery-dates' ),
+				'confirm_delete_holiday'  => __( 'Delete this holiday? This cannot be undone.', 'jezpress-woo-delivery-dates' ),
 				'saving'                  => __( 'Saving...', 'jezpress-woo-delivery-dates' ),
 				'deleting'                => __( 'Deleting...', 'jezpress-woo-delivery-dates' ),
 				'error'                   => __( 'An error occurred. Please try again.', 'jezpress-woo-delivery-dates' ),
 				'no_carriers'             => __( 'No carriers yet. Add one below.', 'jezpress-woo-delivery-dates' ),
 				'no_schedules'            => __( 'No schedules yet.', 'jezpress-woo-delivery-dates' ),
+				'no_holidays'             => __( 'No holidays yet. Click &quot;+ Add Holiday&quot; to create one.', 'jezpress-woo-delivery-dates' ),
 			),
 		) );
 	}
@@ -220,6 +243,8 @@ class JWDD_Admin {
 			'settings'  => __( 'Settings', 'jezpress-woo-delivery-dates' ),
 			'carriers'  => __( 'Carriers', 'jezpress-woo-delivery-dates' ),
 			'schedules' => __( 'Schedules', 'jezpress-woo-delivery-dates' ),
+			'holidays'  => __( 'Holidays', 'jezpress-woo-delivery-dates' ),
+			'calendar'  => __( 'Calendar', 'jezpress-woo-delivery-dates' ),
 			'license'   => __( 'License', 'jezpress-woo-delivery-dates' ),
 		);
 
@@ -260,6 +285,12 @@ class JWDD_Admin {
 				break;
 			case 'schedules':
 				$this->render_tab_schedules();
+				break;
+			case 'holidays':
+				$this->render_tab_holidays();
+				break;
+			case 'calendar':
+				$this->render_tab_calendar();
 				break;
 			case 'license':
 				if ( $license ) {
@@ -307,7 +338,7 @@ class JWDD_Admin {
 						<td>
 							<label>
 								<input type="checkbox" name="jwdd_settings[required]" value="1" <?php checked( 1, $settings['required'] ?? 1 ); ?>>
-								<?php esc_html_e( 'Customer must select a date and time slot to place an order', 'jezpress-woo-delivery-dates' ); ?>
+								<?php esc_html_e( 'Customer must select a delivery date to place an order. A time slot is also required when slots are available for the chosen date.', 'jezpress-woo-delivery-dates' ); ?>
 							</label>
 						</td>
 					</tr>
@@ -328,8 +359,50 @@ class JWDD_Admin {
 						</th>
 						<td>
 							<input type="text" id="jwdd_checkout_label" name="jwdd_settings[checkout_label]"
-								   value="<?php echo esc_attr( $settings['checkout_label'] ?? 'Select Delivery Date & Time' ); ?>"
-								   class="regular-text">
+								   value="<?php echo esc_attr( $settings['checkout_label'] ?? '' ); ?>"
+								   class="regular-text"
+								   placeholder="<?php esc_attr_e( 'Select Delivery Date & Time', 'jezpress-woo-delivery-dates' ); ?>">
+							<p class="description"><?php esc_html_e( 'Heading displayed above the delivery fields at checkout. Leave blank to hide it.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="jwdd_date_label"><?php esc_html_e( 'Delivery Date Field Label', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="jwdd_date_label" name="jwdd_settings[date_label]"
+								   value="<?php echo esc_attr( $settings['date_label'] ?? '' ); ?>"
+								   class="regular-text"
+								   placeholder="<?php esc_attr_e( 'Delivery Date', 'jezpress-woo-delivery-dates' ); ?>">
+							<p class="description"><?php esc_html_e( 'Leave blank to use the default: "Delivery Date".', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="jwdd_slot_label"><?php esc_html_e( 'Time Slot Field Label', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="jwdd_slot_label" name="jwdd_settings[slot_label]"
+								   value="<?php echo esc_attr( $settings['slot_label'] ?? '' ); ?>"
+								   class="regular-text"
+								   placeholder="<?php esc_attr_e( 'Delivery Time Slot', 'jezpress-woo-delivery-dates' ); ?>">
+							<p class="description"><?php esc_html_e( 'Leave blank to use the default: "Delivery Time Slot".', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="jwdd_week_start"><?php esc_html_e( 'Week Starts On', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<select id="jwdd_week_start" name="jwdd_settings[week_start]">
+								<option value="0" <?php selected( 0, $settings['week_start'] ?? 0 ); ?>>
+									<?php esc_html_e( 'Sunday', 'jezpress-woo-delivery-dates' ); ?>
+								</option>
+								<option value="1" <?php selected( 1, $settings['week_start'] ?? 0 ); ?>>
+									<?php esc_html_e( 'Monday', 'jezpress-woo-delivery-dates' ); ?>
+								</option>
+							</select>
+							<p class="description"><?php esc_html_e( 'First day shown in the checkout calendar.', 'jezpress-woo-delivery-dates' ); ?></p>
 						</td>
 					</tr>
 				</table>
@@ -815,6 +888,272 @@ class JWDD_Admin {
 			</div>
 		</div>
 
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Holidays tab — routes to list, add, or edit page.
+	 *
+	 * @return void
+	 */
+	private function render_tab_holidays() {
+		$action     = isset( $_GET['action'] )     ? sanitize_key( $_GET['action'] )   : '';
+		$holiday_id = isset( $_GET['holiday_id'] ) ? absint( $_GET['holiday_id'] )     : 0;
+
+		if ( 'add' === $action ) {
+			$this->render_holiday_form_page( 0 );
+		} elseif ( 'edit' === $action && $holiday_id > 0 ) {
+			$this->render_holiday_form_page( $holiday_id );
+		} else {
+			$this->render_holiday_list_page();
+		}
+	}
+
+	/**
+	 * Render the holidays list page.
+	 *
+	 * @return void
+	 */
+	private function render_holiday_list_page() {
+		$holidays = JWDD_Holidays::get_all();
+		$add_url  = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=add' );
+
+		// Build carrier name map for display.
+		$carrier_map = array();
+		foreach ( JWDD_Carriers::get_all() as $c ) {
+			$carrier_map[ (int) $c->id ] = $c->name;
+		}
+		?>
+		<div style="max-width:960px; margin-top:20px;">
+			<div class="jwdd-card">
+				<h2>
+					<?php esc_html_e( 'Holidays', 'jezpress-woo-delivery-dates' ); ?>
+					<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary button-small" style="margin-left:auto;">
+						<?php esc_html_e( '+ Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+					</a>
+				</h2>
+
+				<div id="jwdd-holidays-feedback" class="jwdd-feedback" style="display:none;"></div>
+
+				<table class="widefat striped" id="jwdd-holidays-table">
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
+							<th><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
+							<th><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?></th>
+							<th><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?></th>
+							<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
+							<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
+						</tr>
+					</thead>
+					<tbody id="jwdd-holidays-tbody">
+						<?php if ( empty( $holidays ) ) : ?>
+							<tr id="jwdd-holidays-empty">
+								<td colspan="6"><?php esc_html_e( 'No holidays yet. Click &quot;+ Add Holiday&quot; to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
+							</tr>
+						<?php else : ?>
+							<?php foreach ( $holidays as $h ) : ?>
+								<?php
+								$h_cids    = JWDD_Holidays::decode_carrier_ids( $h->carrier_ids );
+								$cid_names = array();
+								foreach ( $h_cids as $cid ) {
+									if ( isset( $carrier_map[ $cid ] ) ) {
+										$cid_names[] = $carrier_map[ $cid ];
+									}
+								}
+								$carriers_display = empty( $h_cids )
+									? __( 'All Carriers', 'jezpress-woo-delivery-dates' )
+									: implode( ', ', $cid_names );
+								$edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=edit&holiday_id=' . $h->id );
+								?>
+								<tr id="jwdd-holiday-row-<?php echo esc_attr( $h->id ); ?>">
+									<td><strong><?php echo esc_html( $h->name ); ?></strong></td>
+									<td><?php echo esc_html( $carriers_display ); ?></td>
+									<td><?php echo esc_html( $h->date_from ); ?></td>
+									<td><?php echo esc_html( $h->date_to ); ?></td>
+									<td>
+										<?php if ( $h->is_active ) : ?>
+											<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
+										<?php else : ?>
+											<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
+										<?php endif; ?>
+									</td>
+									<td>
+										<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
+											<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
+										</a>
+										<button class="button button-small jwdd-delete-holiday"
+												data-id="<?php echo esc_attr( $h->id ); ?>"
+												data-name="<?php echo esc_attr( $h->name ); ?>">
+											<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
+										</button>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						<?php endif; ?>
+					</tbody>
+				</table>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the holiday add/edit form page.
+	 *
+	 * @param int $holiday_id 0 for add, positive int for edit.
+	 * @return void
+	 */
+	private function render_holiday_form_page( $holiday_id ) {
+		$is_edit  = $holiday_id > 0;
+		$holiday  = $is_edit ? JWDD_Holidays::get_by_id( $holiday_id ) : null;
+		$list_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays' );
+		$carriers = JWDD_Carriers::get_all();
+
+		if ( $is_edit && ! $holiday ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html__( 'Holiday not found.', 'jezpress-woo-delivery-dates' ) . '</p></div>';
+			return;
+		}
+		?>
+		<div style="max-width:780px; margin-top:20px;">
+
+			<p style="margin-bottom:16px;">
+				<a href="<?php echo esc_url( $list_url ); ?>" class="jwdd-back-link">
+					&#8592; <?php esc_html_e( 'Back to Holidays', 'jezpress-woo-delivery-dates' ); ?>
+				</a>
+			</p>
+
+			<div class="jwdd-card">
+				<h2>
+					<?php if ( $is_edit ) : ?>
+						<?php printf(
+							/* translators: %s: holiday name */
+							esc_html__( 'Edit Holiday: %s', 'jezpress-woo-delivery-dates' ),
+							'<em>' . esc_html( $holiday->name ) . '</em>'
+						); ?>
+					<?php else : ?>
+						<?php esc_html_e( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+					<?php endif; ?>
+				</h2>
+
+				<div id="jwdd-holiday-feedback" class="jwdd-feedback" style="display:none;"></div>
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th><label for="jwdd_holiday_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+						<td>
+							<input type="text" id="jwdd_holiday_name" class="regular-text"
+								   value="<?php echo $is_edit ? esc_attr( $holiday->name ) : ''; ?>"
+								   placeholder="<?php esc_attr_e( 'e.g. Christmas Day', 'jezpress-woo-delivery-dates' ); ?>">
+						</td>
+					</tr>
+					<tr>
+						<th style="vertical-align:top; padding-top:14px;"><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
+						<td>
+							<?php
+							$checked_cids = $is_edit ? JWDD_Holidays::decode_carrier_ids( $holiday->carrier_ids ) : array();
+							?>
+							<?php if ( empty( $carriers ) ) : ?>
+								<p class="description"><?php esc_html_e( 'No carriers configured. This holiday will apply to all deliveries.', 'jezpress-woo-delivery-dates' ); ?></p>
+							<?php else : ?>
+								<select id="jwdd-holiday-carriers" multiple size="<?php echo min( count( $carriers ), 6 ); ?>" style="min-width:260px;">
+									<?php foreach ( $carriers as $c ) : ?>
+										<option value="<?php echo esc_attr( $c->id ); ?>"
+											<?php selected( in_array( (int) $c->id, $checked_cids, true ) ); ?>>
+											<?php echo esc_html( $c->name ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description" style="margin-top:6px;"><?php esc_html_e( 'Hold Ctrl / Cmd to select multiple. Leave all deselected to apply to all carriers.', 'jezpress-woo-delivery-dates' ); ?></p>
+							<?php endif; ?>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="jwdd_holiday_date_from"><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+						<td>
+							<input type="date" id="jwdd_holiday_date_from" class="regular-text"
+								   value="<?php echo $is_edit ? esc_attr( $holiday->date_from ) : ''; ?>">
+						</td>
+					</tr>
+					<tr>
+						<th><label for="jwdd_holiday_date_to"><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+						<td>
+							<input type="date" id="jwdd_holiday_date_to" class="regular-text"
+								   value="<?php echo $is_edit ? esc_attr( $holiday->date_to ) : ''; ?>">
+							<p class="description"><?php esc_html_e( 'For a single-day holiday, set From and To to the same date.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" id="jwdd_holiday_is_active" value="1"
+									<?php checked( $is_edit ? (bool) $holiday->is_active : true ); ?>>
+								<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+
+				<input type="hidden" id="jwdd_holiday_id" value="<?php echo esc_attr( $holiday_id ); ?>">
+
+				<p>
+					<button type="button" class="button button-primary" id="jwdd-save-holiday">
+						<?php echo $is_edit
+							? esc_html__( 'Update Holiday', 'jezpress-woo-delivery-dates' )
+							: esc_html__( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+					</button>
+				</p>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Calendar tab.
+	 *
+	 * Outputs the calendar shell — toolbar (month/week/day toggles + prev/next nav)
+	 * and an empty grid container. JavaScript fetches order data via AJAX and
+	 * builds the grid client-side.
+	 *
+	 * @return void
+	 */
+	private function render_tab_calendar() {
+		?>
+		<div class="jwdd-cal-wrap" style="margin-top:20px;">
+			<div class="jwdd-card jwdd-cal-card">
+
+				<!-- Toolbar -->
+				<div class="jwdd-cal-toolbar">
+					<div class="jwdd-cal-nav">
+						<button type="button" class="button" id="jwdd-cal-prev" aria-label="<?php esc_attr_e( 'Previous period', 'jezpress-woo-delivery-dates' ); ?>">&#8592;</button>
+						<span id="jwdd-cal-period" class="jwdd-cal-period"></span>
+						<button type="button" class="button" id="jwdd-cal-next" aria-label="<?php esc_attr_e( 'Next period', 'jezpress-woo-delivery-dates' ); ?>">&#8594;</button>
+					</div>
+
+					<div class="jwdd-cal-view-toggles" role="group" aria-label="<?php esc_attr_e( 'Calendar view', 'jezpress-woo-delivery-dates' ); ?>">
+						<button type="button" class="jwdd-cal-view-toggle active" data-view="month">
+							<?php esc_html_e( 'Month', 'jezpress-woo-delivery-dates' ); ?>
+						</button>
+						<button type="button" class="jwdd-cal-view-toggle" data-view="week">
+							<?php esc_html_e( 'Week', 'jezpress-woo-delivery-dates' ); ?>
+						</button>
+						<button type="button" class="jwdd-cal-view-toggle" data-view="day">
+							<?php esc_html_e( 'Day', 'jezpress-woo-delivery-dates' ); ?>
+						</button>
+					</div>
+				</div>
+
+				<!-- Calendar grid (populated by JS) -->
+				<div id="jwdd-cal-grid">
+					<div class="jwdd-cal-loading">
+						<span class="spinner is-active" style="float:none; margin:0 4px 0 0;"></span>
+						<?php esc_html_e( 'Loading calendar...', 'jezpress-woo-delivery-dates' ); ?>
+					</div>
+				</div>
+
+			</div>
 		</div>
 		<?php
 	}

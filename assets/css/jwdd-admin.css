@@ -331,3 +331,421 @@ body.jwdd-modal-open {
 .jwdd-zone-remove {
 	align-self: flex-end;
 }
+
+/* =========================================================================
+   Calendar tab
+   ========================================================================= */
+
+/* ---- Outer card (full tab width) ---- */
+.jwdd-cal-card {
+	padding: 20px 24px;
+}
+
+/* ---- Toolbar ---- */
+.jwdd-cal-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 18px;
+}
+
+/* Navigation cluster */
+.jwdd-cal-nav {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jwdd-cal-period {
+	font-size: 16px;
+	font-weight: 600;
+	min-width: 200px;
+	text-align: center;
+	color: #1d2327;
+}
+
+/* View toggles */
+.jwdd-cal-view-toggles {
+	display: flex;
+	gap: 0;
+}
+
+.jwdd-cal-view-toggle {
+	padding: 5px 14px;
+	border: 1px solid #ccd0d4;
+	border-right-width: 0;
+	background: #fff;
+	cursor: pointer;
+	font-size: 13px;
+	color: #2c3338;
+	border-radius: 0;
+	line-height: 1.5;
+}
+
+.jwdd-cal-view-toggle:first-child {
+	border-radius: 3px 0 0 3px;
+}
+
+.jwdd-cal-view-toggle:last-child {
+	border-right-width: 1px;
+	border-radius: 0 3px 3px 0;
+}
+
+.jwdd-cal-view-toggle.active {
+	background: #2271b1;
+	border-color: #2271b1;
+	color: #fff;
+	position: relative;
+	z-index: 1;
+}
+
+.jwdd-cal-view-toggle:hover:not(.active) {
+	background: #f6f7f7;
+}
+
+/* ---- Shared grid layout ---- */
+.jwdd-cal-header-row {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	border-bottom: 2px solid #e8eaec;
+	margin-bottom: 3px;
+}
+
+.jwdd-cal-header-cell {
+	padding: 6px 4px;
+	text-align: center;
+	font-size: 11px;
+	font-weight: 700;
+	color: #50575e;
+	text-transform: uppercase;
+	letter-spacing: .6px;
+}
+
+.jwdd-cal-body {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 3px;
+}
+
+/* ---- Day cells (month view) ---- */
+.jwdd-cal-cell {
+	min-height: 90px;
+	border: 1px solid #ededee;
+	padding: 5px 6px;
+	background: #fff;
+	overflow: hidden;
+	box-sizing: border-box;
+}
+
+.jwdd-cal-cell-other {
+	background: #f9f9f9;
+}
+
+.jwdd-cal-cell-other .jwdd-cal-day-num {
+	color: #c3c4c7;
+}
+
+.jwdd-cal-cell-today {
+	background: #f0f6fc;
+	border-color: #2271b1 !important;
+}
+
+.jwdd-cal-cell-past {
+	background: #fafafa;
+}
+
+.jwdd-cal-day-num {
+	display: block;
+	font-size: 12px;
+	font-weight: 700;
+	color: #50575e;
+	text-align: right;
+	margin-bottom: 5px;
+	line-height: 1;
+}
+
+.jwdd-cal-cell-today .jwdd-cal-day-num {
+	color: #2271b1;
+}
+
+/* ---- Week view cells ---- */
+.jwdd-cal-week-body {
+	gap: 3px;
+}
+
+.jwdd-cal-cell-week {
+	min-height: 160px;
+}
+
+/* ---- Order pills (month & week views) ---- */
+.jwdd-cal-orders {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.jwdd-cal-order-pill {
+	display: block;
+	font-size: 11px;
+	line-height: 1.4;
+	padding: 2px 5px 2px 7px;
+	border-radius: 2px;
+	background: #e6f2fa;
+	color: #1e3a5f;
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	border-left: 3px solid #2271b1;
+	transition: background .1s;
+}
+
+.jwdd-cal-order-pill:hover {
+	background: #d0e7f5;
+	color: #1e3a5f;
+	text-decoration: none;
+}
+
+/* Status-colour variants */
+.jwdd-cal-order-processing {
+	background: #fff8e5;
+	color: #6b4a00;
+	border-left-color: #f0a500;
+}
+
+.jwdd-cal-order-processing:hover { background: #fdf0cc; }
+
+.jwdd-cal-order-completed {
+	background: #eafaf1;
+	color: #145a32;
+	border-left-color: #27ae60;
+}
+
+.jwdd-cal-order-completed:hover { background: #d5f5e3; }
+
+.jwdd-cal-order-on-hold {
+	background: #e8f8fd;
+	color: #0a3d47;
+	border-left-color: #17a2b8;
+}
+
+.jwdd-cal-order-on-hold:hover { background: #d0f0f8; }
+
+.jwdd-cal-order-pending,
+.jwdd-cal-order-pending-payment {
+	background: #f0f0f1;
+	color: #3c434a;
+	border-left-color: #8c8f94;
+}
+
+.jwdd-cal-order-pending:hover,
+.jwdd-cal-order-pending-payment:hover { background: #dcdcde; }
+
+.jwdd-cal-order-cancelled,
+.jwdd-cal-order-refunded,
+.jwdd-cal-order-failed {
+	background: #fcebeb;
+	color: #6b1414;
+	border-left-color: #d63638;
+	opacity: .75;
+}
+
+/* ---- Day view ---- */
+.jwdd-cal-day {
+	padding: 4px 0;
+}
+
+.jwdd-cal-day-slot {
+	padding: 14px 0 16px;
+	border-bottom: 1px solid #ededee;
+}
+
+.jwdd-cal-day-slot:last-child {
+	border-bottom: none;
+}
+
+.jwdd-cal-slot-label {
+	margin: 0 0 10px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #2c3338;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jwdd-cal-slot-count {
+	font-size: 11px;
+	font-weight: 400;
+	color: #50575e;
+	background: #f0f0f1;
+	padding: 1px 7px;
+	border-radius: 10px;
+}
+
+.jwdd-cal-day-orders {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.jwdd-cal-day-orders li {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jwdd-cal-order-link {
+	font-size: 13px;
+	color: #2271b1;
+	text-decoration: none;
+}
+
+.jwdd-cal-order-link:hover {
+	text-decoration: underline;
+}
+
+.jwdd-cal-status {
+	display: inline-block;
+	font-size: 11px;
+	font-weight: 600;
+	padding: 1px 7px;
+	border-radius: 10px;
+	text-transform: capitalize;
+}
+
+.jwdd-cal-status-processing   { background: #fff8e5; color: #6b4a00; }
+.jwdd-cal-status-completed     { background: #eafaf1; color: #145a32; }
+.jwdd-cal-status-on-hold       { background: #e8f8fd; color: #0a3d47; }
+.jwdd-cal-status-pending,
+.jwdd-cal-status-pending-payment { background: #f0f0f1; color: #3c434a; }
+.jwdd-cal-status-cancelled,
+.jwdd-cal-status-refunded,
+.jwdd-cal-status-failed         { background: #fcebeb; color: #6b1414; }
+
+/* ---- Empty / loading states ---- */
+.jwdd-cal-no-orders {
+	color: #757575;
+	font-size: 13px;
+	padding: 24px 0;
+	text-align: center;
+	margin: 0;
+}
+
+.jwdd-cal-loading {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 20px 0;
+	color: #757575;
+	font-size: 13px;
+}
+
+.jwdd-cal-error {
+	color: #721c24;
+	background: #f8d7da;
+	border: 1px solid #f5c6cb;
+	padding: 8px 12px;
+	border-radius: 3px;
+	font-size: 13px;
+	margin: 0;
+}
+
+/* ---- Holiday pills (month & week cell views) ---- */
+.jwdd-cal-holiday-pills {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin-bottom: 3px;
+}
+
+.jwdd-cal-holiday-pill {
+	display: block;
+	font-size: 11px;
+	line-height: 1.4;
+	padding: 2px 5px 2px 7px;
+	border-radius: 2px;
+	background: #fff7ed;
+	color: #7c2d12;
+	text-decoration: none;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	border-left: 3px solid #f97316;
+	font-style: italic;
+	transition: background .1s;
+}
+
+.jwdd-cal-holiday-pill:hover {
+	background: #ffedd5;
+	color: #7c2d12;
+	text-decoration: none;
+}
+
+/* Subtle warm tint on cells that contain a holiday */
+.jwdd-cal-cell-has-holiday:not(.jwdd-cal-cell-today):not(.jwdd-cal-cell-other) {
+	background: #fffbf5;
+}
+
+.jwdd-cal-cell-has-holiday.jwdd-cal-cell-past:not(.jwdd-cal-cell-other) {
+	background: #fdf6ee;
+}
+
+/* ---- Holiday block (day view) ---- */
+.jwdd-cal-day-holidays {
+	background: #fff7ed;
+	border: 1px solid #fed7aa;
+	border-left: 4px solid #f97316;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin-bottom: 20px;
+}
+
+.jwdd-cal-day-holidays-heading {
+	margin: 0 0 8px;
+	font-size: 13px;
+	font-weight: 700;
+	color: #7c2d12;
+	text-transform: uppercase;
+	letter-spacing: .4px;
+}
+
+.jwdd-cal-day-holiday-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.jwdd-cal-day-holiday-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.jwdd-cal-holiday-link {
+	font-size: 13px;
+	font-weight: 600;
+	color: #c2410c;
+	text-decoration: none;
+}
+
+.jwdd-cal-holiday-link:hover {
+	text-decoration: underline;
+	color: #9a3412;
+}
+
+.jwdd-cal-holiday-carriers {
+	font-size: 11px;
+	color: #9a3412;
+	background: #ffedd5;
+	padding: 1px 7px;
+	border-radius: 10px;
+}

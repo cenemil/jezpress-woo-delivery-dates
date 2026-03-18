@@ -18,6 +18,7 @@
 	var availableDates = cfg.available_dates || [];
 	var maxFutureDays  = cfg.max_future_days || 30;
 	var hasAddress     = !! cfg.has_address;
+	var weekStart      = cfg.week_start !== undefined ? parseInt( cfg.week_start, 10 ) : 0;
 
 	var $wrap       = null;
 	var $statusMsg  = null;
@@ -76,7 +77,6 @@
 	function showPickers() {
 		$statusMsg.hide();
 		$dateRow.show();
-		$slotRow.show();
 	}
 
 	// -------------------------------------------------------------------------
@@ -96,7 +96,8 @@
 			dateFormat:    'D, d M yy',
 			altField:      '#jwdd_delivery_date',
 			altFormat:     'yy-mm-dd',
-			minDate:       1,
+			firstDay:      weekStart,
+			minDate:       0,
 			maxDate:       maxFutureDays,
 			beforeShowDay: function ( date ) {
 				var dateStr = $.datepicker.formatDate( 'yy-mm-dd', date );
@@ -120,6 +121,7 @@
 				.append( $( '<option>', { value: '', text: i18n.select_date || 'Select a date first...' } ) )
 				.prop( 'disabled', true );
 		}
+		if ( $slotRow ) { $slotRow.hide(); }
 	}
 
 	// -------------------------------------------------------------------------
@@ -178,14 +180,14 @@
 			$slotSelect.empty();
 
 			if ( ! response.success || ! response.data || ! response.data.slots ) {
-				$slotSelect.append( $( '<option>', { value: '', text: i18n.error || 'Could not load time slots.' } ) );
+				$slotRow.hide();
 				return;
 			}
 
 			var slots = response.data.slots;
 
 			if ( slots.length === 0 ) {
-				$slotSelect.append( $( '<option>', { value: '', text: i18n.no_slots || 'No time slots available for this date.' } ) );
+				$slotRow.hide();
 				return;
 			}
 
@@ -196,9 +198,10 @@
 			} );
 
 			$slotSelect.prop( 'disabled', false );
+			$slotRow.show();
 		} )
 		.fail( function () {
-			$slotSelect.empty().append( $( '<option>', { value: '', text: i18n.error || 'Could not load time slots.' } ) );
+			$slotRow.hide();
 		} );
 	}
 
