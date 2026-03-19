@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -42,6 +42,10 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.3.0 =
+* Fixed calendar order query incompatibility with WooCommerce HPOS — replaced `meta_query` in `wc_get_orders()` with a direct meta-table query, resolving the `WC_Order_Data_Store_CPT::query` doing-it-wrong notice introduced in WooCommerce 9.2.0.
+* Calendar: delivery order pills and holiday pills in month and week views are now capped at 5 per day. When a day has more than 5 items of either type, a "+ N more" toggle button is shown. Clicking it opens a dedicated modal listing all items for that day — separate modals for holidays and orders.
 
 = 1.2.0 =
 * Added Holidays management — create named date ranges that block delivery availability; scope to all carriers or specific carriers. Holidays are enforced at checkout and displayed in the new Calendar view.

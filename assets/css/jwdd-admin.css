@@ -696,6 +696,71 @@ body.jwdd-modal-open {
 	background: #fdf6ee;
 }
 
+/* ---- Calendar overflow "more" togglers ---- */
+.jwdd-cal-more-btn {
+	display: block;
+	width: 100%;
+	margin-top: 2px;
+	padding: 2px 5px;
+	background: none;
+	border: 1px dashed #c3c4c7;
+	border-radius: 2px;
+	font-size: 11px;
+	color: #50575e;
+	cursor: pointer;
+	text-align: left;
+	line-height: 1.4;
+	transition: background .1s, color .1s, border-color .1s;
+}
+
+.jwdd-cal-more-btn:hover {
+	background: #f0f0f1;
+	color: #1d2327;
+	border-color: #8c8f94;
+}
+
+.jwdd-cal-more-holidays {
+	border-color: #fed7aa;
+	color: #9a3412;
+}
+
+.jwdd-cal-more-holidays:hover {
+	background: #fff7ed;
+	border-color: #f97316;
+	color: #7c2d12;
+}
+
+/* ---- Calendar overflow modals: list ---- */
+.jwdd-cal-modal-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.jwdd-cal-modal-list-item {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 8px 0;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 13px;
+}
+
+.jwdd-cal-modal-list-item:last-child {
+	border-bottom: none;
+}
+
+.jwdd-cal-modal-slot {
+	font-size: 11px;
+	color: #50575e;
+	background: #f0f0f1;
+	padding: 1px 6px;
+	border-radius: 10px;
+}
+
 /* ---- Holiday block (day view) ---- */
 .jwdd-cal-day-holidays {
 	background: #fff7ed;

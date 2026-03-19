@@ -158,7 +158,7 @@ class JWDD_Checkout {
 				'select_date'      => __( 'Select a date...', 'jezpress-woo-delivery-dates' ),
 				'select_slot'      => __( 'Select a time slot...', 'jezpress-woo-delivery-dates' ),
 				'loading'          => __( 'Loading time slots...', 'jezpress-woo-delivery-dates' ),
-				'loading_dates'    => __( 'Checking available delivery dates\u2026', 'jezpress-woo-delivery-dates' ),
+				'loading_dates'    => __( 'Checking available delivery dates…', 'jezpress-woo-delivery-dates' ),
 				'address_required' => __( 'Enter your shipping address to see available delivery dates.', 'jezpress-woo-delivery-dates' ),
 				'no_slots'         => __( 'No time slots available for this date.', 'jezpress-woo-delivery-dates' ),
 				'no_dates'         => __( 'No delivery dates are currently available for your area.', 'jezpress-woo-delivery-dates' ),

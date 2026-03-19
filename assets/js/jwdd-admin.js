@@ -645,6 +645,24 @@
 			fetchCalendar();
 		} );
 
+		// Calendar overflow modals (holidays & orders).
+		var calModals = initCalendarModals();
+		if ( gridEl ) {
+			gridEl.addEventListener( 'click', function ( e ) {
+				var btn = e.target.closest( '.jwdd-cal-more-btn' );
+				if ( ! btn ) return;
+				e.preventDefault();
+				var dateStr = btn.dataset.date;
+				var type    = btn.dataset.type;
+				if ( ! state.data || ! dateStr ) return;
+				if ( type === 'holidays' ) {
+					calModals.openHolidays( dateStr, ( state.data.holidays || {} )[ dateStr ] || [] );
+				} else {
+					calModals.openOrders( dateStr, ( state.data.orders || {} )[ dateStr ] || [] );
+				}
+			} );
+		}
+
 		function fetchCalendar() {
 			if ( gridEl ) {
 				gridEl.innerHTML =
@@ -745,8 +763,8 @@
 
 				html += '<div class="' + cls + '">'
 					+ '<span class="jwdd-cal-day-num">' + day + '</span>'
-					+ renderHolidayPills( dayHolidays )
-					+ renderOrderPills( dayOrders )
+					+ renderHolidayPills( dayHolidays, dateStr )
+					+ renderOrderPills( dayOrders, dateStr )
 					+ '</div>';
 			}
 
@@ -790,8 +808,8 @@
 
 				html += '<div class="' + cls + '">'
 					+ '<span class="jwdd-cal-day-num">' + DAY_ABBR[ d.getDay() ] + ' ' + d.getDate() + '</span>'
-					+ renderHolidayPills( dayHolidays )
-					+ renderOrderPills( dayOrders )
+					+ renderHolidayPills( dayHolidays, dateStr )
+					+ renderOrderPills( dayOrders, dateStr )
 					+ '</div>';
 			} );
 
@@ -868,10 +886,14 @@
 			return html;
 		}
 
-		function renderOrderPills( orders ) {
+		var CAL_MAX_PILLS = 5;
+
+		function renderOrderPills( orders, dateStr ) {
 			if ( ! orders.length ) return '';
+			var visible  = orders.slice( 0, CAL_MAX_PILLS );
+			var overflow = orders.length - CAL_MAX_PILLS;
 			var html = '<div class="jwdd-cal-orders">';
-			orders.forEach( function ( o ) {
+			visible.forEach( function ( o ) {
 				var title = 'Order #' + o.number
 					+ ( o.slot_label ? ' \u2014 ' + o.slot_label : '' )
 					+ ' (' + o.status_label + ')';
@@ -881,20 +903,38 @@
 					+ 'Delivery day for Order #' + escHtml( String( o.number ) )
 					+ '</a>';
 			} );
+			if ( overflow > 0 ) {
+				html += '<button type="button"'
+					+ ' class="jwdd-cal-more-btn jwdd-cal-more-orders"'
+					+ ' data-date="' + escAttr( dateStr ) + '"'
+					+ ' data-type="orders">+'
+					+ overflow + ' more order' + ( overflow !== 1 ? 's' : '' )
+					+ '</button>';
+			}
 			html += '</div>';
 			return html;
 		}
 
-		function renderHolidayPills( holidays ) {
+		function renderHolidayPills( holidays, dateStr ) {
 			if ( ! holidays.length ) return '';
+			var visible  = holidays.slice( 0, CAL_MAX_PILLS );
+			var overflow = holidays.length - CAL_MAX_PILLS;
 			var html = '<div class="jwdd-cal-holiday-pills">';
-			holidays.forEach( function ( h ) {
+			visible.forEach( function ( h ) {
 				html += '<a href="' + escAttr( h.edit_url ) + '"'
 					+ ' class="jwdd-cal-holiday-pill"'
 					+ ' title="' + escAttr( h.name + ' \u2014 ' + h.carriers ) + '">'
 					+ escHtml( h.name )
 					+ '</a>';
 			} );
+			if ( overflow > 0 ) {
+				html += '<button type="button"'
+					+ ' class="jwdd-cal-more-btn jwdd-cal-more-holidays"'
+					+ ' data-date="' + escAttr( dateStr ) + '"'
+					+ ' data-type="holidays">+'
+					+ overflow + ' more holiday' + ( overflow !== 1 ? 's' : '' )
+					+ '</button>';
+			}
 			html += '</div>';
 			return html;
 		}
@@ -909,6 +949,82 @@
 
 		function calPad( n ) {
 			return String( n ).padStart( 2, '0' );
+		}
+
+		function initCalendarModals() {
+			function createModal( id, titleId, bodyId ) {
+				var el = document.createElement( 'div' );
+				el.id = id;
+				el.className = 'jwdd-modal';
+				el.style.display = 'none';
+				el.innerHTML =
+					'<div class="jwdd-modal-backdrop"></div>'
+					+ '<div class="jwdd-modal-box">'
+					+ '<div class="jwdd-modal-header">'
+					+ '<h3 id="' + titleId + '"></h3>'
+					+ '<button type="button" class="jwdd-modal-close">×</button>'
+					+ '</div>'
+					+ '<div class="jwdd-modal-body" id="' + bodyId + '"></div>'
+					+ '</div>';
+				document.body.appendChild( el );
+				function close() {
+					el.style.display = 'none';
+					document.body.classList.remove( 'jwdd-modal-open' );
+				}
+				el.querySelector( '.jwdd-modal-backdrop' ).addEventListener( 'click', close );
+				el.querySelector( '.jwdd-modal-close' ).addEventListener( 'click', close );
+				return el;
+			}
+
+			var holidayModal = createModal( 'jwdd-cal-holidays-modal', 'jwdd-cal-holidays-modal-title', 'jwdd-cal-holidays-modal-body' );
+			var ordersModal  = createModal( 'jwdd-cal-orders-modal',  'jwdd-cal-orders-modal-title',  'jwdd-cal-orders-modal-body' );
+
+			function openModal( modal ) {
+				modal.style.display = '';
+				document.body.classList.add( 'jwdd-modal-open' );
+			}
+
+			return {
+				openHolidays: function ( dateStr, holidays ) {
+					document.getElementById( 'jwdd-cal-holidays-modal-title' ).textContent = 'Holidays — ' + formatCalDate( dateStr );
+					var body = document.getElementById( 'jwdd-cal-holidays-modal-body' );
+					var html = '<ul class="jwdd-cal-modal-list">';
+					holidays.forEach( function ( h ) {
+						html += '<li class="jwdd-cal-modal-list-item">'
+							+ '<a href="' + escAttr( h.edit_url ) + '" class="jwdd-cal-holiday-link">'
+							+ escHtml( h.name ) + '</a>'
+							+ ' <span class="jwdd-cal-holiday-carriers">' + escHtml( h.carriers ) + '</span>'
+							+ '</li>';
+					} );
+					html += '</ul>';
+					body.innerHTML = html;
+					openModal( holidayModal );
+				},
+				openOrders: function ( dateStr, orders ) {
+					document.getElementById( 'jwdd-cal-orders-modal-title' ).textContent = 'Orders — ' + formatCalDate( dateStr );
+					var body = document.getElementById( 'jwdd-cal-orders-modal-body' );
+					var html = '<ul class="jwdd-cal-modal-list">';
+					orders.forEach( function ( o ) {
+						html += '<li class="jwdd-cal-modal-list-item">'
+							+ '<a href="' + escAttr( o.edit_url ) + '" class="jwdd-cal-order-link">'
+							+ 'Order #' + escHtml( String( o.number ) ) + '</a>'
+							+ ( o.slot_label ? ' <span class="jwdd-cal-modal-slot">' + escHtml( o.slot_label ) + '</span>' : '' )
+							+ ' <span class="jwdd-cal-status jwdd-cal-status-' + escAttr( o.status ) + '">' + escHtml( o.status_label ) + '</span>'
+							+ '</li>';
+					} );
+					html += '</ul>';
+					body.innerHTML = html;
+					openModal( ordersModal );
+				},
+			};
+		}
+
+		function formatCalDate( dateStr ) {
+			if ( ! dateStr ) return dateStr;
+			var parts = dateStr.split( '-' );
+			if ( parts.length !== 3 ) return dateStr;
+			var d = new Date( parseInt( parts[0], 10 ), parseInt( parts[1], 10 ) - 1, parseInt( parts[2], 10 ) );
+			return d.toLocaleDateString( undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' } );
 		}
 	}
 

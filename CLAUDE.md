@@ -10,6 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
 - **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
+- **Current version:** `1.3.0`
 - **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
@@ -225,6 +226,8 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 - `get_all()` — all holidays ordered by `date_from`
 - `get_by_id( $id )` — single holiday object
 - `get_blocked_dates( $date_from, $date_to, $carrier_ids )` — returns a `date => true` map of blocked dates for a range, optionally scoped to specific carrier IDs. An empty `carrier_ids` array on a holiday means it applies to ALL carriers.
+
+`JWDD_Calendar::get_orders_for_range()` is HPOS-compatible: it resolves the correct meta table (`wp_wc_orders_meta` for HPOS, `wp_postmeta` for legacy) via `OrderUtil::custom_orders_table_usage_is_enabled()`, queries it directly for matching order IDs, then loads orders via `wc_get_orders( ['include' => $ids] )`. This avoids the `meta_query` argument that is not supported under HPOS (WooCommerce 9.2.0+).
 - `decode_carrier_ids( $json )` — decode the `carrier_ids` JSON field to `int[]`
 
 Holidays are checked by `JWDD_Schedules::get_available_dates()` — blocked dates are excluded from the available dates returned to checkout.
@@ -252,6 +255,8 @@ Holidays are checked by `JWDD_Schedules::get_available_dates()` — blocked date
 ```
 
 **Color schemes:** delivery order pills use blue/status-colour left-border accent; holiday pills use amber/orange (`#f97316` border) and are rendered above order pills in each day cell.
+
+**Overflow behaviour (month & week views):** Each day cell shows a maximum of 5 holiday pills and 5 order pills. When either type exceeds 5, a `+ N more` button (`jwdd-cal-more-btn`) is appended. Clicking it opens a dedicated modal (`#jwdd-cal-holidays-modal` or `#jwdd-cal-orders-modal`) listing all items for that date. The modals are injected once into `document.body` on calendar init via `initCalendarModals()` and reused across navigations. Click delegation on `gridEl` drives the open logic using `data-date` and `data-type` attributes on the button.
 
 ## JezPress Platform
 

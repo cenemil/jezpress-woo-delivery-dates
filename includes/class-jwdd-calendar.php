@@ -124,16 +124,34 @@ class JWDD_Calendar {
 			return array();
 		}
 
+		global $wpdb;
+
+		// Resolve the correct meta table for HPOS vs legacy post-meta storage.
+		if ( class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+			&& method_exists( '\Automattic\WooCommerce\Utilities\OrderUtil', 'custom_orders_table_usage_is_enabled' )
+			&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled()
+		) {
+			$meta_table = $wpdb->prefix . 'wc_orders_meta';
+			$id_col     = 'order_id';
+		} else {
+			$meta_table = $wpdb->postmeta;
+			$id_col     = 'post_id';
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$order_ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT {$id_col} FROM {$meta_table} WHERE meta_key = '_jwdd_delivery_date' AND meta_value BETWEEN %s AND %s",
+			$start,
+			$end
+		) );
+
+		if ( empty( $order_ids ) ) {
+			return array();
+		}
+
 		$orders = wc_get_orders( array(
-			'limit'      => -1,
-			'meta_query' => array(
-				array(
-					'key'     => '_jwdd_delivery_date',
-					'value'   => array( $start, $end ),
-					'compare' => 'BETWEEN',
-					'type'    => 'CHAR',
-				),
-			),
+			'limit'   => -1,
+			'include' => array_map( 'intval', $order_ids ),
 		) );
 
 		$grouped = array();
