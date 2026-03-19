@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -42,6 +42,9 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.3.2 =
+* Updated developer documentation (CLAUDE.md) to accurately reflect the raw JOIN query approach introduced in v1.3.1 for the calendar order query.
 
 = 1.3.1 =
 * Fix: calendar order query now uses a single lightweight JOIN query instead of loading full WC_Order objects, preventing PHP memory exhaustion on high-volume stores.
