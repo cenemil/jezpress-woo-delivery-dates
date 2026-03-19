@@ -115,76 +115,90 @@ class JWDD_Calendar {
 	/**
 	 * Query all WooCommerce orders that have a delivery date within the given range.
 	 *
+	 * Uses raw JOIN queries instead of wc_get_orders() to avoid instantiating
+	 * WC_Order objects for every result, preventing memory exhaustion on stores
+	 * with large order volumes. Supports both HPOS and legacy post-meta storage.
+	 *
 	 * @param string $start Y-m-d
 	 * @param string $end   Y-m-d
 	 * @return array Keyed by date string, each value is an array of order data arrays.
 	 */
 	public static function get_orders_for_range( $start, $end ) {
-		if ( ! function_exists( 'wc_get_orders' ) ) {
-			return array();
-		}
-
 		global $wpdb;
 
-		// Resolve the correct meta table for HPOS vs legacy post-meta storage.
-		if ( class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
+		$is_hpos = class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
 			&& method_exists( '\Automattic\WooCommerce\Utilities\OrderUtil', 'custom_orders_table_usage_is_enabled' )
-			&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled()
-		) {
-			$meta_table = $wpdb->prefix . 'wc_orders_meta';
-			$id_col     = 'order_id';
+			&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled();
+
+		if ( $is_hpos ) {
+			$orders_table = $wpdb->prefix . 'wc_orders';
+			$meta_table   = $wpdb->prefix . 'wc_orders_meta';
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT o.id, o.status,
+				        m_d.meta_value AS delivery_date,
+				        m_s.meta_value AS slot_label
+				 FROM {$orders_table} o
+				 INNER JOIN {$meta_table} m_d ON m_d.order_id = o.id AND m_d.meta_key = '_jwdd_delivery_date'
+				 LEFT JOIN  {$meta_table} m_s ON m_s.order_id = o.id AND m_s.meta_key = '_jwdd_time_slot_label'
+				 WHERE m_d.meta_value BETWEEN %s AND %s
+				 ORDER BY m_d.meta_value ASC",
+				$start,
+				$end
+			) );
 		} else {
-			$meta_table = $wpdb->postmeta;
-			$id_col     = 'post_id';
+			$posts_table = $wpdb->posts;
+			$meta_table  = $wpdb->postmeta;
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT p.ID AS id, p.post_status AS status,
+				        m_d.meta_value AS delivery_date,
+				        m_s.meta_value AS slot_label
+				 FROM {$posts_table} p
+				 INNER JOIN {$meta_table} m_d ON m_d.post_id = p.ID AND m_d.meta_key = '_jwdd_delivery_date'
+				 LEFT JOIN  {$meta_table} m_s ON m_s.post_id = p.ID AND m_s.meta_key = '_jwdd_time_slot_label'
+				 WHERE p.post_type = 'shop_order'
+				 AND m_d.meta_value BETWEEN %s AND %s
+				 ORDER BY m_d.meta_value ASC",
+				$start,
+				$end
+			) );
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$order_ids = $wpdb->get_col( $wpdb->prepare(
-			"SELECT {$id_col} FROM {$meta_table} WHERE meta_key = '_jwdd_delivery_date' AND meta_value BETWEEN %s AND %s",
-			$start,
-			$end
-		) );
-
-		if ( empty( $order_ids ) ) {
+		if ( empty( $rows ) ) {
 			return array();
 		}
-
-		$orders = wc_get_orders( array(
-			'limit'   => -1,
-			'include' => array_map( 'intval', $order_ids ),
-		) );
 
 		$grouped = array();
 
-		foreach ( $orders as $order ) {
-			$delivery_date = $order->get_meta( '_jwdd_delivery_date' );
+		foreach ( $rows as $row ) {
+			$delivery_date = $row->delivery_date;
 			if ( ! $delivery_date ) {
 				continue;
 			}
 
-			$status     = $order->get_status();
-			$slot_label = $order->get_meta( '_jwdd_time_slot_label' );
-
-			// HPOS-compatible edit URL.
-			if ( class_exists( '\Automattic\WooCommerce\Utilities\OrderUtil' )
-				&& method_exists( '\Automattic\WooCommerce\Utilities\OrderUtil', 'custom_orders_table_usage_is_enabled' )
-				&& \Automattic\WooCommerce\Utilities\OrderUtil::custom_orders_table_usage_is_enabled()
-			) {
-				$edit_url = admin_url( 'admin.php?page=wc-orders&action=edit&id=' . $order->get_id() );
-			} else {
-				$edit_url = admin_url( 'post.php?post=' . $order->get_id() . '&action=edit' );
+			// Normalise status: strip leading 'wc-' prefix if present.
+			$status = $row->status;
+			if ( strpos( $status, 'wc-' ) === 0 ) {
+				$status = substr( $status, 3 );
 			}
+
+			$edit_url = $is_hpos
+				? admin_url( 'admin.php?page=wc-orders&action=edit&id=' . (int) $row->id )
+				: admin_url( 'post.php?post=' . (int) $row->id . '&action=edit' );
 
 			if ( ! isset( $grouped[ $delivery_date ] ) ) {
 				$grouped[ $delivery_date ] = array();
 			}
 
 			$grouped[ $delivery_date ][] = array(
-				'id'           => $order->get_id(),
-				'number'       => $order->get_order_number(),
+				'id'           => (int) $row->id,
+				'number'       => (int) $row->id,
 				'status'       => $status,
 				'status_label' => wc_get_order_status_name( $status ),
-				'slot_label'   => $slot_label ?: '',
+				'slot_label'   => $row->slot_label ?: '',
 				'edit_url'     => $edit_url,
 			);
 		}
