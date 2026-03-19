@@ -67,7 +67,8 @@ class JWDD_Admin {
 	 * @return void
 	 */
 	public function register_settings() {
-		register_setting( 'jwdd_settings_group', 'jwdd_settings', array( $this, 'sanitize_settings' ) );
+		register_setting( 'jwdd_settings_group',       'jwdd_settings',       array( $this, 'sanitize_settings' ) );
+		register_setting( 'jwdd_email_settings_group', 'jwdd_email_settings', array( $this, 'sanitize_email_settings' ) );
 	}
 
 	/**
@@ -85,6 +86,32 @@ class JWDD_Admin {
 			'week_start'      => isset( $input['week_start'] ) && '1' === (string) $input['week_start'] ? 1 : 0,
 			'date_label'      => isset( $input['date_label'] ) ? sanitize_text_field( $input['date_label'] ) : '',
 			'slot_label'      => isset( $input['slot_label'] ) ? sanitize_text_field( $input['slot_label'] ) : '',
+			'date_format'     => ( isset( $input['date_format'] ) && in_array( $input['date_format'], array( 'MM d, yy', 'yy-mm-dd', 'mm/dd/yy', 'dd/mm/yy' ), true ) )
+				? $input['date_format']
+				: 'MM d, yy',
+		);
+	}
+
+	/**
+	 * Default email content template.
+	 *
+	 * @return string
+	 */
+	public static function default_email_content() {
+		return "Hi {customer_name},\n\nYour order #{order_id} from {site_title} is confirmed and scheduled for delivery on {delivery_date}.\n\nThank you for your order!";
+	}
+
+	/**
+	 * Sanitize email settings before saving.
+	 *
+	 * @param array $input Raw input.
+	 * @return array Sanitized email settings.
+	 */
+	public function sanitize_email_settings( $input ) {
+		return array(
+			'subject'     => isset( $input['subject'] )     ? sanitize_text_field( $input['subject'] )     : '',
+			'sender_name' => isset( $input['sender_name'] ) ? sanitize_text_field( $input['sender_name'] ) : '',
+			'content'     => isset( $input['content'] )     ? wp_kses_post( $input['content'] )            : '',
 		);
 	}
 
@@ -245,6 +272,7 @@ class JWDD_Admin {
 			'schedules' => __( 'Schedules', 'jezpress-woo-delivery-dates' ),
 			'holidays'  => __( 'Holidays', 'jezpress-woo-delivery-dates' ),
 			'calendar'  => __( 'Calendar', 'jezpress-woo-delivery-dates' ),
+			'email'     => __( 'Email', 'jezpress-woo-delivery-dates' ),
 			'license'   => __( 'License', 'jezpress-woo-delivery-dates' ),
 		);
 
@@ -291,6 +319,9 @@ class JWDD_Admin {
 				break;
 			case 'calendar':
 				$this->render_tab_calendar();
+				break;
+			case 'email':
+				$this->render_tab_email();
 				break;
 			case 'license':
 				if ( $license ) {
@@ -403,6 +434,36 @@ class JWDD_Admin {
 								</option>
 							</select>
 							<p class="description"><?php esc_html_e( 'First day shown in the checkout calendar.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="jwdd_date_format"><?php esc_html_e( 'Date Display Format', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$current_format = $settings['date_format'] ?? 'MM d, yy';
+							$now            = current_datetime();
+							$ex_mdy  = $now->format( 'F j, Y' );
+							$ex_ymd  = $now->format( 'Y-m-d' );
+							$ex_mdy2 = $now->format( 'm/d/Y' );
+							$ex_dmy  = $now->format( 'd/m/Y' );
+							?>
+							<select id="jwdd_date_format" name="jwdd_settings[date_format]">
+								<option value="MM d, yy" <?php selected( 'MM d, yy', $current_format ); ?>>
+									<?php echo esc_html( sprintf( __( 'Month Day, Year (e.g. %s)', 'jezpress-woo-delivery-dates' ), $ex_mdy ) ); ?>
+								</option>
+								<option value="yy-mm-dd" <?php selected( 'yy-mm-dd', $current_format ); ?>>
+									<?php echo esc_html( sprintf( __( 'yy-mm-dd (e.g. %s)', 'jezpress-woo-delivery-dates' ), $ex_ymd ) ); ?>
+								</option>
+								<option value="mm/dd/yy" <?php selected( 'mm/dd/yy', $current_format ); ?>>
+									<?php echo esc_html( sprintf( __( 'mm/dd/yy (e.g. %s)', 'jezpress-woo-delivery-dates' ), $ex_mdy2 ) ); ?>
+								</option>
+								<option value="dd/mm/yy" <?php selected( 'dd/mm/yy', $current_format ); ?>>
+									<?php echo esc_html( sprintf( __( 'dd/mm/yy (e.g. %s)', 'jezpress-woo-delivery-dates' ), $ex_dmy ) ); ?>
+								</option>
+							</select>
+							<p class="description"><?php esc_html_e( 'Controls how the date appears to the customer in the checkout datepicker. Does not affect the stored date format.', 'jezpress-woo-delivery-dates' ); ?></p>
 						</td>
 					</tr>
 				</table>
@@ -962,14 +1023,21 @@ class JWDD_Admin {
 										$cid_names[] = $carrier_map[ $cid ];
 									}
 								}
-								$carriers_display = empty( $h_cids )
+								$all_carriers_full = empty( $h_cids )
 									? __( 'All Carriers', 'jezpress-woo-delivery-dates' )
 									: implode( ', ', $cid_names );
+								if ( empty( $h_cids ) ) {
+									$carriers_display = $all_carriers_full;
+								} elseif ( count( $cid_names ) === 1 ) {
+									$carriers_display = $cid_names[0];
+								} else {
+									$carriers_display = $cid_names[0] . '...';
+								}
 								$edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=edit&holiday_id=' . $h->id );
 								?>
 								<tr id="jwdd-holiday-row-<?php echo esc_attr( $h->id ); ?>">
 									<td><strong><?php echo esc_html( $h->name ); ?></strong></td>
-									<td><?php echo esc_html( $carriers_display ); ?></td>
+									<td title="<?php echo esc_attr( $all_carriers_full ); ?>"><?php echo esc_html( $carriers_display ); ?></td>
 									<td><?php echo esc_html( $h->date_from ); ?></td>
 									<td><?php echo esc_html( $h->date_to ); ?></td>
 									<td>
@@ -1155,6 +1223,80 @@ class JWDD_Admin {
 
 			</div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Render the Email tab.
+	 *
+	 * @return void
+	 */
+	private function render_tab_email() {
+		$es = get_option( 'jwdd_email_settings', array() );
+
+		$subject     = $es['subject']     ?? '';
+		$sender_name = $es['sender_name'] ?? '';
+		$content     = $es['content']     ?? '';
+		?>
+		<form method="post" action="options.php" style="max-width:800px; margin-top:20px;">
+			<?php settings_fields( 'jwdd_email_settings_group' ); ?>
+
+			<div class="jwdd-card">
+				<h2><?php esc_html_e( 'Shipping Confirmation Email', 'jezpress-woo-delivery-dates' ); ?></h2>
+				<p class="description" style="margin-bottom:16px;">
+					<?php esc_html_e( 'Manually sent to the customer from the order edit screen. Check the "Send shipping confirmation email" checkbox in the Delivery Details panel and save the order to trigger this email.', 'jezpress-woo-delivery-dates' ); ?>
+				</p>
+
+				<!-- Variable reference -->
+				<div class="jwdd-email-vars" style="background:#f6f7f7; border:1px solid #ddd; border-radius:4px; padding:10px 14px; margin-bottom:20px; font-size:13px;">
+					<strong style="display:block; margin-bottom:6px;"><?php esc_html_e( 'Available variables:', 'jezpress-woo-delivery-dates' ); ?></strong>
+					<div><code>{order_id}</code> &mdash; <?php esc_html_e( 'Order number', 'jezpress-woo-delivery-dates' ); ?></div>
+					<div><code>{customer_name}</code> &mdash; <?php esc_html_e( 'Customer first name', 'jezpress-woo-delivery-dates' ); ?></div>
+					<div><code>{delivery_date}</code> &mdash; <?php esc_html_e( 'Scheduled delivery date', 'jezpress-woo-delivery-dates' ); ?></div>
+					<div><code>{site_title}</code> &mdash; <?php esc_html_e( 'Site name', 'jezpress-woo-delivery-dates' ); ?></div>
+				</div>
+
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="jwdd_email_subject"><?php esc_html_e( 'Email Subject', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="jwdd_email_subject" name="jwdd_email_settings[subject]"
+								   value="<?php echo esc_attr( $subject ); ?>"
+								   class="large-text"
+								   placeholder="<?php esc_attr_e( 'Your delivery for order #{order_id} is confirmed', 'jezpress-woo-delivery-dates' ); ?>">
+							<p class="description"><?php esc_html_e( 'Leave blank to use the default subject shown above.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="jwdd_email_sender_name"><?php esc_html_e( 'Sender Name', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<input type="text" id="jwdd_email_sender_name" name="jwdd_email_settings[sender_name]"
+								   value="<?php echo esc_attr( $sender_name ); ?>"
+								   class="regular-text"
+								   placeholder="<?php echo esc_attr( get_option( 'blogname' ) ); ?>">
+							<p class="description"><?php esc_html_e( 'Leave blank to use the WooCommerce "From" name set in WooCommerce &rsaquo; Settings &rsaquo; Emails.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row" style="vertical-align:top; padding-top:14px;">
+							<label for="jwdd_email_content"><?php esc_html_e( 'Email Content', 'jezpress-woo-delivery-dates' ); ?></label>
+						</th>
+						<td>
+							<textarea id="jwdd_email_content" name="jwdd_email_settings[content]"
+									  rows="8" class="large-text"
+									  placeholder="<?php echo esc_attr( self::default_email_content() ); ?>"><?php echo esc_textarea( $content ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'Leave blank to use the default message. Plain text only — line breaks are preserved.', 'jezpress-woo-delivery-dates' ); ?></p>
+						</td>
+					</tr>
+				</table>
+			</div>
+
+			<?php submit_button( __( 'Save Email Settings', 'jezpress-woo-delivery-dates' ) ); ?>
+		</form>
 		<?php
 	}
 

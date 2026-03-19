@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.3.2
+Stable tag: 1.4.0
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -27,7 +27,11 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 * Time slot labels displayed as "From HH:MM to HH:MM" format
 * Delivery date shown in the admin order page, customer order detail page, and all WooCommerce emails
 * Delivery Date column in the WooCommerce orders list
-* Configurable settings: maximum future days, required/optional, checkout section label, custom field labels, week start day
+* Configurable settings: maximum future days, required/optional, checkout section label, custom field labels, week start day, date display format
+* Email tab — configure a shipping confirmation email (subject, sender name, content with variables) triggered manually from the admin order edit screen
+* "Shipped to Carrier" checkbox on order edit screen — marks the order as shipped and sends the confirmation email once; persists as locked after first use
+* Overdue notice icon on delivery date in orders list and order detail panel when delivery date has passed and order is not yet marked as shipped
+* Shipped checkmark icon in orders list delivery date column with timestamp tooltip
 * JezPress license and auto-update integration
 
 **Note:** WooCommerce Blocks checkout is not supported. Requires the classic checkout shortcode.
@@ -42,6 +46,16 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.4.0 =
+* Added Email tab in plugin settings — configure shipping confirmation email subject, sender name, and content using variables ({order_id}, {customer_name}, {delivery_date}, {site_title}). Uses WooCommerce email header/footer template.
+* Added "Shipped to Carrier" checkbox on the admin order edit screen Delivery Details panel. Checking it on save sends the configured confirmation email to the customer once; the checkbox locks permanently after first use.
+* Added overdue notice icon (red) on the delivery date in both the orders list column and the order detail panel when the delivery date has passed and the order has not been marked as shipped.
+* Added shipped checkmark icon (green) in the orders list delivery date column with a tooltip showing the date and time the order was marked as shipped.
+* Added Date Display Format setting — controls how the date appears in the checkout datepicker (Month Day Year, yy-mm-dd, mm/dd/yy, dd/mm/yy); does not affect the stored date format. Default is "March 8, 2026" style.
+* Calendar cell overflow cap reduced from 5 to 3 items per type (holidays and orders tracked independently).
+* Holiday For column in holidays list now truncates to first carrier name + "..." when multiple carriers are assigned; full list shown on hover via title attribute.
+* Delivery details in the admin order panel reordered: Carrier → Date → Time Slot → Shipped to Carrier checkbox.
 
 = 1.3.2 =
 * Updated developer documentation (CLAUDE.md) to accurately reflect the raw JOIN query approach introduced in v1.3.1 for the calendar order query.

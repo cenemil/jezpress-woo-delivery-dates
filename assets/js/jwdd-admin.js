@@ -886,12 +886,13 @@
 			return html;
 		}
 
-		var CAL_MAX_PILLS = 5;
+		var CAL_MAX_ORDER_PILLS   = 3;
+		var CAL_MAX_HOLIDAY_PILLS = 3;
 
 		function renderOrderPills( orders, dateStr ) {
 			if ( ! orders.length ) return '';
-			var visible  = orders.slice( 0, CAL_MAX_PILLS );
-			var overflow = orders.length - CAL_MAX_PILLS;
+			var visible  = orders.slice( 0, CAL_MAX_ORDER_PILLS );
+			var overflow = orders.length - CAL_MAX_ORDER_PILLS;
 			var html = '<div class="jwdd-cal-orders">';
 			visible.forEach( function ( o ) {
 				var title = 'Order #' + o.number
@@ -917,8 +918,8 @@
 
 		function renderHolidayPills( holidays, dateStr ) {
 			if ( ! holidays.length ) return '';
-			var visible  = holidays.slice( 0, CAL_MAX_PILLS );
-			var overflow = holidays.length - CAL_MAX_PILLS;
+			var visible  = holidays.slice( 0, CAL_MAX_HOLIDAY_PILLS );
+			var overflow = holidays.length - CAL_MAX_HOLIDAY_PILLS;
 			var html = '<div class="jwdd-cal-holiday-pills">';
 			visible.forEach( function ( h ) {
 				html += '<a href="' + escAttr( h.edit_url ) + '"'

@@ -19,6 +19,7 @@
 	var maxFutureDays  = cfg.max_future_days || 30;
 	var hasAddress     = !! cfg.has_address;
 	var weekStart      = cfg.week_start !== undefined ? parseInt( cfg.week_start, 10 ) : 0;
+	var dateFormat     = cfg.date_format || 'MM d, yy';
 
 	var $wrap       = null;
 	var $statusMsg  = null;
@@ -93,7 +94,7 @@
 		}
 
 		$datePicker.datepicker( {
-			dateFormat:    'D, d M yy',
+			dateFormat:    dateFormat,
 			altField:      '#jwdd_delivery_date',
 			altFormat:     'yy-mm-dd',
 			firstDay:      weekStart,

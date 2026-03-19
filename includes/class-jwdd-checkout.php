@@ -154,6 +154,7 @@ class JWDD_Checkout {
 			'max_future_days' => $max_future_days,
 			'has_address'     => $has_address,
 			'week_start'      => isset( $settings['week_start'] ) ? (int) $settings['week_start'] : 0,
+			'date_format'     => isset( $settings['date_format'] ) ? $settings['date_format'] : 'MM d, yy',
 			'i18n'            => array(
 				'select_date'      => __( 'Select a date...', 'jezpress-woo-delivery-dates' ),
 				'select_slot'      => __( 'Select a time slot...', 'jezpress-woo-delivery-dates' ),

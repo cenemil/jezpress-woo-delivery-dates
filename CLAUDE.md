@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
 - **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
-- **Current version:** `1.3.2`
+- **Current version:** `1.4.0`
 - **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
@@ -35,6 +35,7 @@ jezpress-woo-delivery-dates/
 │   ├── class-jwdd-order.php          — Admin order display, email display, order list column
 │   ├── class-jwdd-holidays.php       — Holiday date ranges CRUD + AJAX handlers + blocked-dates query (since v1.2.0)
 │   ├── class-jwdd-calendar.php       — Admin Calendar tab AJAX; orders + holidays grouped by date (since v1.2.0)
+│   ├── class-jwdd-email.php          — Shipping confirmation email; triggered manually from order edit screen (since v1.4.0)
 │   ├── class-jwdd-license.php        — Singleton. JezPress license (adapted from JWOR pattern)
 │   └── class-jwdd-updater.php        — JezPress update server integration (adapted from JWOR pattern)
 └── assets/
@@ -80,6 +81,8 @@ Slot labels are always auto-generated as `From g:ia to g:ia` from `start_time`/`
 
 ## Available Dates Derivation
 `JWDD_Schedules::get_available_dates()` does **not** query pre-generated slot rows. It reads active schedule definitions, builds a `dow_cutoffs` map (day-of-week → array of cutoff strings), then walks the date window from **today** to `+max_future_days`. A date is included if any active def covers that day-of-week. For **today only**, the cutoff is enforced: today is included only if at least one def for today's DOW has no cutoff set or has a cutoff time that hasn't passed yet (compared against `current_time('H:i')`). Future dates are never cutoff-filtered. This means dates are always live — changing a schedule definition takes effect immediately.
+
+`JWDD_Schedules::get_slots_for_date()` applies a second layer of today-filtering: after building the slot list, any slot whose `start_time` has already passed (WP timezone `H:i`) is removed. This means a customer can be on a valid "today" date but see fewer or no slots as the day progresses. This filter is independent of the definition-level `cutoff` field.
 
 ## Boot Sequence
 
@@ -166,6 +169,7 @@ Located under **WooCommerce > Delivery Dates** (page slug: `jwdd-delivery-dates`
 | Schedules | `?tab=schedules` | Schedule definition list or add/edit def (`action=add|edit&def_id=N`) |
 | Holidays | `?tab=holidays` | Holiday list or add/edit form (`action=add|edit&holiday_id=N`) |
 | Calendar | `?tab=calendar` | Month/week/day calendar of delivery orders + holiday overlays |
+| Email | `?tab=email` | Shipping confirmation email subject, sender name, and content template |
 | License | `?tab=license` | License activate/deactivate form |
 
 The Schedules tab manages **schedule definitions** (named recurring patterns). The carrier form includes a "Shipping Zones & Estimated Delivery" section to map WC shipping zones to estimated delivery days. The Holidays tab manages named date ranges that block delivery availability per-carrier or globally.
@@ -199,7 +203,7 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 
 - **Hook:** `woocommerce_before_order_notes` renders the delivery section
 - **Fields:** `jwdd_delivery_date` (hidden input, `Y-m-d`), `jwdd_delivery_date_picker` (visible jQuery UI Datepicker, readonly, not submitted), `jwdd_time_slot_id` (select, AJAX-populated), `#jwdd-date-status` (status message `<p>`, JS-controlled)
-- **Datepicker:** jQuery UI Datepicker (`jquery-ui-datepicker`). Restricted to `jwdd_checkout.available_dates` via `beforeShowDay`. Display format `D, d M yy`; alt format `yy-mm-dd` written to the hidden field. Styles are self-contained in `jwdd-checkout.css`.
+- **Datepicker:** jQuery UI Datepicker (`jquery-ui-datepicker`). Restricted to `jwdd_checkout.available_dates` via `beforeShowDay`. Display format `MM d, yy` (e.g. March 8, 2026) by default, configurable via settings; alt format `yy-mm-dd` written to the hidden field. Styles are self-contained in `jwdd-checkout.css`.
 - **Initial render:** date/slot rows are hidden (`display:none`). JS shows them once address is confirmed and dates are available.
 - **Address detection:** `JWDD_Checkout::get_applicable_carrier_ids()` returns `null` (no filter) if no address/no carriers, `[]` if address present but no matching carrier, or `[id, ...]` for matched carriers. `has_address` flag is `true` if shipping or billing country is set.
 - **Dynamic refresh:** On WooCommerce `update_checkout` event → JS shows loading message and clears selection. On `updated_checkout` → JS calls `jwdd_get_available_dates` AJAX and re-renders datepicker with fresh dates.
@@ -216,6 +220,7 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 | `_jwdd_time_slot_id` | Schedule row ID |
 | `_jwdd_time_slot_label` | Cached slot label, e.g. "From 9:00am to 12:00pm" |
 | `_jwdd_carrier_id` | Carrier row ID |
+| `_jwdd_shipped_to_carrier` | Datetime string `Y-m-d H:i:s` — set when "Shipped to Carrier" checkbox is saved; absent if not yet shipped |
 
 ## Order Display
 `JWDD_Order` displays delivery details in three places: admin order detail page (`woocommerce_admin_order_data_after_billing_address`), customer My Account order detail (`woocommerce_order_details_after_order_table`), and order emails (`woocommerce_email_after_order_table`). It also adds a **Delivery Date** column to the orders list table, inserted after `order_status`.
@@ -254,9 +259,26 @@ Holidays are checked by `JWDD_Schedules::get_available_dates()` — blocked date
 
 **Color schemes:** delivery order pills use blue/status-colour left-border accent; holiday pills use amber/orange (`#f97316` border) and are rendered above order pills in each day cell.
 
-**Overflow behaviour (month & week views):** Each day cell shows a maximum of 5 holiday pills and 5 order pills. When either type exceeds 5, a `+ N more` button (`jwdd-cal-more-btn`) is appended. Clicking it opens a dedicated modal (`#jwdd-cal-holidays-modal` or `#jwdd-cal-orders-modal`) listing all items for that date. The modals are injected once into `document.body` on calendar init via `initCalendarModals()` and reused across navigations. Click delegation on `gridEl` drives the open logic using `data-date` and `data-type` attributes on the button.
+**Overflow behaviour (month & week views):** Each day cell shows a maximum of 3 holiday pills and 3 order pills. When either type exceeds 5, a `+ N more` button (`jwdd-cal-more-btn`) is appended. Clicking it opens a dedicated modal (`#jwdd-cal-holidays-modal` or `#jwdd-cal-orders-modal`) listing all items for that date. The modals are injected once into `document.body` on calendar init via `initCalendarModals()` and reused across navigations. Click delegation on `gridEl` drives the open logic using `data-date` and `data-type` attributes on the button.
 
 **Order query (`get_orders_for_range`):** Uses a single raw `INNER JOIN … LEFT JOIN` query directly against the DB tables — no `WC_Order` objects are instantiated. Fetches only `id`, `status`, `delivery_date` (`_jwdd_delivery_date`), and `slot_label` (`_jwdd_time_slot_label`). Supports both HPOS (`wp_wc_orders` + `wp_wc_orders_meta`) and legacy (`wp_posts` + `wp_postmeta`) via `OrderUtil::custom_orders_table_usage_is_enabled()`. Status values are normalised in PHP by stripping the `wc-` prefix. The order `number` field is set to the order `id` — sufficient for calendar display and compatible with default WooCommerce (custom order number plugins are not accounted for in this view).
+
+## Shipping Confirmation Email (since v1.4.0)
+
+`JWDD_Email` has no constructor hooks — it is a static utility class. The email is triggered manually:
+
+1. Admin opens an order edit screen with a delivery date set.
+2. The "Delivered Details" panel (rendered by `JWDD_Order::display_in_admin()`) shows a "Shipped to Carrier" checkbox.
+3. Checking the box and saving the order fires `woocommerce_process_shop_order_meta` → `JWDD_Order::maybe_send_email()`.
+4. The handler verifies the nonce, checks `_jwdd_shipped_to_carrier` meta is not already set, calls `JWDD_Email::send_for_order()`, then saves `_jwdd_shipped_to_carrier = current_time('Y-m-d H:i:s')`.
+5. On subsequent loads the checkbox renders checked + disabled — it cannot be re-triggered.
+
+**Email settings** are stored in `jwdd_email_settings` (separate option, separate settings group `jwdd_email_settings_group`):
+- `subject` — email subject line; defaults to `Your delivery for order #{order_id} is confirmed`
+- `sender_name` — from name; defaults to WC `woocommerce_email_from_name`
+- `content` — body text; defaults to `JWDD_Admin::default_email_content()`; supports `{order_id}`, `{customer_name}`, `{delivery_date}`, `{site_title}`
+
+The sender address always uses `woocommerce_email_from_address` (not configurable). Content is wrapped in the WooCommerce email header/footer via `wc_get_template('emails/email-header.php')` / `wc_get_template('emails/email-footer.php')`. A `<style>` override removes the `cellpadding="20"` from the WC inner content table.
 
 ## JezPress Platform
 
