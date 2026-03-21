@@ -160,6 +160,29 @@
 	// Time slot loading
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Populate the time slot select from a slots array and show/hide the row.
+	 *
+	 * @param {Array} slots Array of slot objects with id and label properties.
+	 */
+	function renderSlots( slots ) {
+		$slotSelect.empty();
+
+		if ( ! slots || slots.length === 0 ) {
+			$slotRow.hide();
+			return;
+		}
+
+		$slotSelect.append( $( '<option>', { value: '', text: i18n.select_slot || 'Select a time slot...' } ) );
+
+		$.each( slots, function ( index, slot ) {
+			$slotSelect.append( $( '<option>', { value: slot.id, text: slot.label } ) );
+		} );
+
+		$slotSelect.prop( 'disabled', false );
+		$slotRow.show();
+	}
+
 	function onDateChange() {
 		var date = $dateInput.val();
 
@@ -167,6 +190,14 @@
 
 		if ( ! date ) {
 			$slotSelect.append( $( '<option>', { value: '', text: i18n.select_date || 'Select a date first...' } ) );
+			return;
+		}
+
+		// Use inline slot data when available (localised at page load for ≤30 schedule defs).
+		// Falls back to AJAX for dates not present in the map (e.g. after an address change
+		// refreshes available dates with a different carrier context).
+		if ( cfg.slots_by_date && Object.prototype.hasOwnProperty.call( cfg.slots_by_date, date ) ) {
+			renderSlots( cfg.slots_by_date[ date ] );
 			return;
 		}
 
@@ -185,21 +216,7 @@
 				return;
 			}
 
-			var slots = response.data.slots;
-
-			if ( slots.length === 0 ) {
-				$slotRow.hide();
-				return;
-			}
-
-			$slotSelect.append( $( '<option>', { value: '', text: i18n.select_slot || 'Select a time slot...' } ) );
-
-			$.each( slots, function ( index, slot ) {
-				$slotSelect.append( $( '<option>', { value: slot.id, text: slot.label } ) );
-			} );
-
-			$slotSelect.prop( 'disabled', false );
-			$slotRow.show();
+			renderSlots( response.data.slots );
 		} )
 		.fail( function () {
 			$slotRow.hide();

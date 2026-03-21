@@ -147,7 +147,7 @@ class JWDD_Checkout {
 			! empty( $customer->get_billing_country() )
 		);
 
-		wp_localize_script( 'jwdd-checkout', 'jwdd_checkout', array(
+		$localize = array(
 			'ajaxurl'         => admin_url( 'admin-ajax.php' ),
 			'nonce'           => wp_create_nonce( 'jwdd_checkout_nonce' ),
 			'available_dates' => $available,
@@ -165,7 +165,31 @@ class JWDD_Checkout {
 				'no_dates'         => __( 'No delivery dates are currently available for your area.', 'jezpress-woo-delivery-dates' ),
 				'error'            => __( 'Could not load delivery dates. Please refresh the page.', 'jezpress-woo-delivery-dates' ),
 			),
-		) );
+		);
+
+		// If there are ≤20 available dates, pre-build slot data for all of them and
+		// inline it so the checkout JS skips per-date AJAX calls on date selection.
+		if ( count( $available ) <= 20 && ! empty( $available ) ) {
+			$slots_by_date = array();
+			foreach ( $available as $date ) {
+				$slots     = JWDD_Schedules::get_slots_for_date( $date, $carrier_ids );
+				$formatted = array();
+				foreach ( $slots as $slot ) {
+					$formatted[] = array(
+						'id'           => (int) $slot->id,
+						'label'        => $slot->label,
+						'carrier_name' => $slot->carrier_name,
+						'carrier_id'   => (int) $slot->carrier_id,
+						'start_time'   => $slot->start_time,
+						'end_time'     => $slot->end_time,
+					);
+				}
+				$slots_by_date[ $date ] = $formatted;
+			}
+			$localize['slots_by_date'] = $slots_by_date;
+		}
+
+		wp_localize_script( 'jwdd-checkout', 'jwdd_checkout', $localize );
 	}
 
 	/**

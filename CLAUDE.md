@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
 - **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
-- **Current version:** `1.4.0`
+- **Current version:** `1.4.1`
 - **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
@@ -209,6 +209,7 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 - **Dynamic refresh:** On WooCommerce `update_checkout` event → JS shows loading message and clears selection. On `updated_checkout` → JS calls `jwdd_get_available_dates` AJAX and re-renders datepicker with fresh dates.
 - **States shown in `#jwdd-date-status`:** address required / loading / no dates available / error.
 - **Available dates** are computed from active schedule definitions on both initial page load (`wp_localize_script`) and each `updated_checkout` AJAX refresh.
+- **Inline slot data:** If the number of available dates is ≤ 20, `enqueue_scripts()` calls `get_slots_for_date()` for every available date and localises the results as `jwdd_checkout.slots_by_date` (keyed by `Y-m-d`). The checkout JS uses this map directly on date selection — no `jwdd_get_time_slots` AJAX call is made. If a date is not present in the map (e.g. after an address change refreshes available dates with a different carrier context), the JS falls back to the AJAX action automatically. When available dates exceed 20, `slots_by_date` is absent and all slot loading uses AJAX.
 - **Validation:** `woocommerce_checkout_process` — validates date and slot if `required = 1`; re-checks slot availability (race condition protection).
 - **Save:** `woocommerce_checkout_create_order` — saves `_jwdd_delivery_date`, `_jwdd_time_slot_id`, `_jwdd_time_slot_label`, `_jwdd_carrier_id` to order meta.
 - **Booking count:** incremented on `woocommerce_checkout_order_created`; decremented on cancelled/refunded.
