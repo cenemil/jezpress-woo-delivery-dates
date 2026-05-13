@@ -265,7 +265,10 @@ class JWDD_Admin {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'jezpress-woo-delivery-dates' ) );
 		}
 
-		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings';
+		$license     = JWDD_License::get_instance();
+		$is_licensed = $license && $license->is_valid();
+
+		$current_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'settings'; // phpcs:ignore WordPress.Security.NonceVerification
 		$tabs        = array(
 			'settings'  => __( 'Settings', 'jezpress-woo-delivery-dates' ),
 			'carriers'  => __( 'Carriers', 'jezpress-woo-delivery-dates' ),
@@ -276,8 +279,9 @@ class JWDD_Admin {
 			'license'   => __( 'License', 'jezpress-woo-delivery-dates' ),
 		);
 
-		$license     = JWDD_License::get_instance();
-		$is_licensed = $license && $license->is_valid();
+		if ( ! $is_licensed && 'license' !== $current_tab ) {
+			$current_tab = 'license';
+		}
 
 		echo '<div class="wrap jwdd-wrap">';
 		echo '<h1>' . esc_html__( 'Jezpress Delivery Dates', 'jezpress-woo-delivery-dates' ) . '</h1>';
@@ -285,6 +289,9 @@ class JWDD_Admin {
 		// Tab navigation.
 		echo '<nav class="nav-tab-wrapper">';
 		foreach ( $tabs as $slug => $label ) {
+			if ( 'license' !== $slug && ! $is_licensed ) {
+				continue;
+			}
 			$url    = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=' . $slug );
 			$active = $current_tab === $slug ? ' nav-tab-active' : '';
 			echo '<a href="' . esc_url( $url ) . '" class="nav-tab' . esc_attr( $active ) . '">' . esc_html( $label ) . '</a>';
@@ -292,20 +299,6 @@ class JWDD_Admin {
 		echo '</nav>';
 
 		echo '<div class="jwdd-tab-content">';
-
-		// Gate non-license tabs.
-		if ( 'license' !== $current_tab && ! $is_licensed ) {
-			$license_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=license' );
-			echo '<div class="notice notice-warning inline"><p>';
-			printf(
-				/* translators: %s: link to license tab */
-				esc_html__( 'A valid license is required to use this plugin. Please %s to enable all features.', 'jezpress-woo-delivery-dates' ),
-				'<a href="' . esc_url( $license_url ) . '">' . esc_html__( 'activate your license', 'jezpress-woo-delivery-dates' ) . '</a>'
-			);
-			echo '</p></div>';
-			echo '</div></div>';
-			return;
-		}
 
 		switch ( $current_tab ) {
 			case 'carriers':

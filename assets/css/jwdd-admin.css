@@ -67,25 +67,6 @@
 	color: #383d41;
 }
 
-/* ---- License status ---- */
-.jezweb-license-status {
-	display: inline-block;
-	padding: 3px 10px;
-	border-radius: 3px;
-	font-size: 12px;
-	font-weight: 600;
-	text-transform: uppercase;
-}
-
-.jezweb-license-status.active {
-	background: #d4edda;
-	color: #155724;
-}
-
-.jezweb-license-status.inactive {
-	background: #f8d7da;
-	color: #721c24;
-}
 
 /* ---- Schedules filter row ---- */
 .jwdd-filter-row {

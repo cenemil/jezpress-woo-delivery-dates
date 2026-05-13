@@ -685,36 +685,57 @@ class JWDD_License {
 
 			<?php settings_errors( $this->menu_slug ); ?>
 
-			<div class="jwdd-card">
+			<div style="background:#fff; border:1px solid #c3c4c7; padding:20px 24px; margin-top:16px;">
 				<h2>
 					<?php esc_html_e( 'License Status', 'jezpress-woo-delivery-dates' ); ?>
 					<?php if ( $is_active ) : ?>
-						<span class="jezweb-license-status active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
+						<span style="display:inline-block;padding:2px 10px;border-radius:3px;font-size:12px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:8px;"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
 					<?php else : ?>
-						<span class="jezweb-license-status inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
+						<span style="display:inline-block;padding:2px 10px;border-radius:3px;font-size:12px;font-weight:600;background:#fee2e2;color:#991b1b;margin-left:8px;"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
 					<?php endif; ?>
 				</h2>
 
 				<?php if ( $is_active ) : ?>
-					<div class="jezweb-license-info">
-						<p><strong><?php esc_html_e( 'License Key:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php echo esc_html( $this->mask_license_key( $license_key ) ); ?></p>
+					<table class="form-table" style="margin-top:0;">
+						<tr>
+							<th><?php esc_html_e( 'License Key:', 'jezpress-woo-delivery-dates' ); ?></th>
+							<td><code><?php echo esc_html( $this->mask_license_key( $license_key ) ); ?></code></td>
+						</tr>
 						<?php if ( ! empty( $license_data['customer'] ) ) : ?>
-							<p><strong><?php esc_html_e( 'Licensed to:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php echo esc_html( $license_data['customer'] ); ?></p>
+						<tr>
+							<th><?php esc_html_e( 'Licensed to:', 'jezpress-woo-delivery-dates' ); ?></th>
+							<td><?php echo esc_html( $license_data['customer'] ); ?></td>
+						</tr>
 						<?php endif; ?>
 						<?php if ( ! empty( $license_data['email'] ) ) : ?>
-							<p><strong><?php esc_html_e( 'Email:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php echo esc_html( $license_data['email'] ); ?></p>
+						<tr>
+							<th><?php esc_html_e( 'Email:', 'jezpress-woo-delivery-dates' ); ?></th>
+							<td><?php echo esc_html( $license_data['email'] ); ?></td>
+						</tr>
 						<?php endif; ?>
 						<?php if ( ! empty( $license_data['domain'] ) ) : ?>
-							<p><strong><?php esc_html_e( 'Domain:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php echo esc_html( $license_data['domain'] ); ?></p>
+						<tr>
+							<th><?php esc_html_e( 'Domain:', 'jezpress-woo-delivery-dates' ); ?></th>
+							<td><?php echo esc_html( $license_data['domain'] ); ?></td>
+						</tr>
 						<?php endif; ?>
-						<?php if ( ! empty( $license_data['expires'] ) && 'lifetime' !== $license_data['expires'] ) : ?>
-							<p><strong><?php esc_html_e( 'Expires:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php echo esc_html( $license_data['expires'] ); ?></p>
-						<?php elseif ( 'lifetime' === ( $license_data['expires'] ?? '' ) ) : ?>
-							<p><strong><?php esc_html_e( 'Expires:', 'jezpress-woo-delivery-dates' ); ?></strong> <?php esc_html_e( 'Never (Lifetime)', 'jezpress-woo-delivery-dates' ); ?></p>
+						<?php if ( ! empty( $license_data['expires'] ) ) : ?>
+						<tr>
+							<th><?php esc_html_e( 'Expires:', 'jezpress-woo-delivery-dates' ); ?></th>
+							<td>
+								<?php
+								if ( 'lifetime' === $license_data['expires'] ) {
+									esc_html_e( 'Never (Lifetime)', 'jezpress-woo-delivery-dates' );
+								} else {
+									echo esc_html( $license_data['expires'] );
+								}
+								?>
+							</td>
+						</tr>
 						<?php endif; ?>
-					</div>
+					</table>
 
-					<form method="post" style="margin-top:20px;">
+					<form method="post" style="margin-top:16px;">
 						<?php wp_nonce_field( 'jezweb_license_deactivate', 'jezweb_license_nonce' ); ?>
 						<input type="hidden" name="jezweb_license_action" value="deactivate">
 						<input type="hidden" name="jezweb_license_slug" value="<?php echo esc_attr( $this->slug ); ?>">

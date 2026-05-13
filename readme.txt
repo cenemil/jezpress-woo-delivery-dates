@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.4.1
+Stable tag: 1.4.2
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -46,6 +46,9 @@ Jezpress WooCommerce Delivery Dates lets your customers select a delivery date a
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.4.2 =
+* Gate all admin tabs behind license validation — when no valid license is present, only the License tab is shown and all other tabs are hidden from the navigation
 
 = 1.4.1 =
 * Checkout time slot loading is now inline (zero AJAX) when there are 20 or fewer available delivery dates — slot data for all dates is localised at page load, eliminating per-date AJAX round-trips. Falls back to AJAX automatically when dates exceed the threshold or when available dates change after an address update.
