@@ -460,9 +460,9 @@ class JWDD_Admin {
 						</td>
 					</tr>
 				</table>
-			</div>
 
-			<?php submit_button( __( 'Save Settings', 'jezpress-woo-delivery-dates' ) ); ?>
+				<?php submit_button( __( 'Save Settings', 'jezpress-woo-delivery-dates' ) ); ?>
+			</div>
 		</form>
 		<?php
 	}
@@ -621,10 +621,10 @@ class JWDD_Admin {
 				</table>
 
 				<input type="hidden" id="jwdd_carrier_id" value="<?php echo esc_attr( $carrier_id ); ?>">
-			</div>
 
-			<div class="jwdd-card">
-				<h2><?php esc_html_e( 'Shipping Zones &amp; Estimated Delivery', 'jezpress-woo-delivery-dates' ); ?></h2>
+				<hr style="margin: 20px 0;">
+
+				<h3><?php esc_html_e( 'Shipping Zones &amp; Estimated Delivery', 'jezpress-woo-delivery-dates' ); ?></h3>
 				<p class="description" style="margin-top:0; margin-bottom:14px;">
 					<?php esc_html_e( 'Map shipping zones to estimated delivery days for this carrier. Add multiple entries for different zones.', 'jezpress-woo-delivery-dates' ); ?>
 				</p>
@@ -636,17 +636,17 @@ class JWDD_Admin {
 						<?php esc_html_e( '+ Add Zone', 'jezpress-woo-delivery-dates' ); ?>
 					</button>
 				</p>
+
+				<div id="jwdd-carrier-feedback" class="jwdd-feedback" style="display:none;"></div>
+
+				<p style="margin-top:16px;">
+					<button type="button" class="button button-primary" id="jwdd-save-carrier">
+						<?php echo $is_edit
+							? esc_html__( 'Update Carrier', 'jezpress-woo-delivery-dates' )
+							: esc_html__( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
+					</button>
+				</p>
 			</div>
-
-			<div id="jwdd-carrier-feedback" class="jwdd-feedback" style="display:none;"></div>
-
-			<p>
-				<button type="button" class="button button-primary" id="jwdd-save-carrier">
-					<?php echo $is_edit
-						? esc_html__( 'Update Carrier', 'jezpress-woo-delivery-dates' )
-						: esc_html__( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
-				</button>
-			</p>
 		</div>
 		<?php
 	}
@@ -1286,9 +1286,9 @@ class JWDD_Admin {
 						</td>
 					</tr>
 				</table>
-			</div>
 
-			<?php submit_button( __( 'Save Email Settings', 'jezpress-woo-delivery-dates' ) ); ?>
+				<?php submit_button( __( 'Save Email Settings', 'jezpress-woo-delivery-dates' ) ); ?>
+			</div>
 		</form>
 		<?php
 	}
