@@ -1,4 +1,4 @@
-===  Jezpress WooCommerce Delivery Dates ===
+===  Jezpress Woo Delivery Dates ===
 Contributors: jezpress
 Tags: woocommerce, delivery, delivery dates, time slots, carriers, checkout
 Requires at least: 5.8
@@ -12,7 +12,7 @@ Customer delivery date and time slot selection at WooCommerce checkout, with car
 
 == Description ==
 
-Jezpress WooCommerce Delivery Dates lets your customers select a delivery date and time slot at checkout. Delivery schedules, carriers, and shipping zone mappings are managed in the WordPress admin under WooCommerce > Delivery Dates.
+Jezpress Woo Delivery Dates lets your customers select a delivery date and time slot at checkout. Delivery schedules, carriers, and shipping zone mappings are managed in the WordPress admin under WooCommerce > Delivery Dates.
 
 **Features:**
 * Customer date and time slot selection on the classic WooCommerce checkout

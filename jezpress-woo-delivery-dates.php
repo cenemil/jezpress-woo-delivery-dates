@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Jezpress WooCommerce Delivery Dates
+ * Plugin Name: Jezpress Woo Delivery Dates
  * Plugin URI:  https://jezpress.com.au
  * Description: Customer delivery date and time slot selection at WooCommerce checkout, with carrier and schedule management.
  * Version:     1.4.2
@@ -62,7 +62,7 @@ function jwdd_uninstall_stub() {}
 require_once JWDD_DIR . 'includes/class-jwdd-updater.php';
 require_once JWDD_DIR . 'includes/class-jwdd-license.php';
 
-$_jwdd_license = JWDD_License::get_instance( __FILE__, 'jezpress-woo-delivery-dates', 'Jezpress WooCommerce Delivery Dates' );
+$_jwdd_license = JWDD_License::get_instance( __FILE__, 'jezpress-woo-delivery-dates', 'Jezpress Woo Delivery Dates' );
 $_jwdd_lic_key = $_jwdd_license->get_license_key();
 
 $_jwdd_updater = new JWDD_Updater( __FILE__ );
@@ -85,7 +85,7 @@ add_action( 'plugins_loaded', 'jwdd_init', 20 );
 function jwdd_init() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		add_action( 'admin_notices', function () {
-			echo '<div class="notice notice-error"><p><strong>Jezpress WooCommerce Delivery Dates</strong> requires WooCommerce to be active.</p></div>';
+			echo '<div class="notice notice-error"><p><strong>Jezpress Woo Delivery Dates</strong> requires WooCommerce to be active.</p></div>';
 		} );
 		return;
 	}

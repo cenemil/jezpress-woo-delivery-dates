@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall script for Jezpress WooCommerce Delivery Dates.
+ * Uninstall script for Jezpress Woo Delivery Dates.
  *
  * Removes all plugin data from the database.
  * Note: License key options are intentionally preserved so re-installation
