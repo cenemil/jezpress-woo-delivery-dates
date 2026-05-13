@@ -284,7 +284,7 @@ class JWDD_Admin {
 		}
 
 		echo '<div class="wrap jwdd-wrap">';
-		echo '<h1>' . esc_html__( 'Jezpress Delivery Dates', 'jezpress-woo-delivery-dates' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'Delivery Dates', 'jezpress-woo-delivery-dates' ) . '</h1>';
 
 		// Tab navigation.
 		echo '<nav class="nav-tab-wrapper">';

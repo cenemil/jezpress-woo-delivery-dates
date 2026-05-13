@@ -85,7 +85,7 @@ add_action( 'plugins_loaded', 'jwdd_init', 20 );
 function jwdd_init() {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		add_action( 'admin_notices', function () {
-			echo '<div class="notice notice-error"><p><strong>Jezpress Woo Delivery Dates</strong> requires WooCommerce to be active.</p></div>';
+			echo '<div class="notice notice-error"><p><strong>Delivery Dates</strong> requires WooCommerce to be active.</p></div>';
 		} );
 		return;
 	}
