@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
 - **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
-- **Current version:** `1.4.1`
+- **Current version:** `1.4.3`
 - **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
@@ -40,11 +40,11 @@ jezpress-woo-delivery-dates/
 │   └── class-jwdd-updater.php        — JezPress update server integration (adapted from JWOR pattern)
 └── assets/
     ├── js/
-    │   ├── jwdd-admin.js             — Carriers/Schedules CRUD (vanilla JS + fetch)
-    │   └── jwdd-checkout.js          — Datepicker + dynamic date refresh + AJAX time slot load (jQuery)
+    │   ├── admin.js             — Carriers/Schedules CRUD (vanilla JS + fetch)
+    │   └── checkout.js          — Datepicker + dynamic date refresh + AJAX time slot load (jQuery)
     └── css/
-        ├── jwdd-admin.css
-        └── jwdd-checkout.css
+        ├── admin.css
+        └── checkout.css
 ```
 
 No Composer dependencies. No build step. Pure PHP + vanilla JS (admin) + jQuery (checkout).
@@ -203,7 +203,7 @@ Non-license tabs are gated: if `JWDD_License::is_valid()` returns false, only th
 
 - **Hook:** `woocommerce_before_order_notes` renders the delivery section
 - **Fields:** `jwdd_delivery_date` (hidden input, `Y-m-d`), `jwdd_delivery_date_picker` (visible jQuery UI Datepicker, readonly, not submitted), `jwdd_time_slot_id` (select, AJAX-populated), `#jwdd-date-status` (status message `<p>`, JS-controlled)
-- **Datepicker:** jQuery UI Datepicker (`jquery-ui-datepicker`). Restricted to `jwdd_checkout.available_dates` via `beforeShowDay`. Display format `MM d, yy` (e.g. March 8, 2026) by default, configurable via settings; alt format `yy-mm-dd` written to the hidden field. Styles are self-contained in `jwdd-checkout.css`.
+- **Datepicker:** jQuery UI Datepicker (`jquery-ui-datepicker`). Restricted to `jwdd_checkout.available_dates` via `beforeShowDay`. Display format `MM d, yy` (e.g. March 8, 2026) by default, configurable via settings; alt format `yy-mm-dd` written to the hidden field. Styles are self-contained in `checkout.css`.
 - **Initial render:** date/slot rows are hidden (`display:none`). JS shows them once address is confirmed and dates are available.
 - **Address detection:** `JWDD_Checkout::get_applicable_carrier_ids()` returns `null` (no filter) if no address/no carriers, `[]` if address present but no matching carrier, or `[id, ...]` for matched carriers. `has_address` flag is `true` if shipping or billing country is set.
 - **Dynamic refresh:** On WooCommerce `update_checkout` event → JS shows loading message and clears selection. On `updated_checkout` → JS calls `jwdd_get_available_dates` AJAX and re-renders datepicker with fresh dates.

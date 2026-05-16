@@ -1,29 +1,68 @@
-/**
- * JWDD Admin Styles
- */
+/* JezPress Woo Delivery Dates — admin page styles */
 
-/* ---- Layout ---- */
-.jwdd-wrap .jwdd-tab-content {
-	padding-top: 16px;
+/* General admin page styles across Jezpress plugins */
+.admin-page-wrap {
+	margin-top: 16px;
 }
 
-.jwdd-card {
+.admin-page-card {
 	background: #fff;
 	border: 1px solid #ccd0d4;
-	border-radius: 3px;
-	padding: 20px 24px;
+	border-radius: 4px;
+	padding: 24px;
+	margin-top: 16px;
 	margin-bottom: 20px;
-	box-shadow: 0 1px 1px rgba(0, 0, 0, .04);
+	max-width: 760px;
 }
 
-.jwdd-card h2 {
+.admin-page-card.admin-page-card-full {
+	max-width: 100%;
+}
+
+.admin-page-card-title {
 	margin-top: 0;
 	padding-bottom: 12px;
+	font-size: 14px;
 	border-bottom: 1px solid #eee;
-	font-size: 15px;
-	display: flex;
-	align-items: center;
-	gap: 10px;
+}
+
+.admin-page-card-section {
+	margin-bottom: 10px;
+	padding-bottom: 10px;
+}
+
+.admin-page-card-section-title {
+	font-size: 14px;
+}
+
+.admin-page-code-block {
+	margin: 10px 15px 5px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	padding: 7px 12px;
+	display: inline-block;
+}
+
+.admin-page-code-block code {
+	font-family: Consolas, 'Courier New', monospace;
+	font-size: 12.5px;
+	color: #2271b1;
+	background: none;
+	padding: 0;
+}
+
+.admin-page-card-section-ul {
+	list-style: disc;
+	margin-left: 2em;
+}
+
+.admin-page-card-submit {
+	margin-top: 20px;
+}
+
+table.form-table td p {
+   font-size: 13px;
 }
 
 /* ---- Feedback messages ---- */

@@ -5,7 +5,7 @@ Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
 WC requires at least: 6.0
-Stable tag: 1.4.2
+Stable tag: 1.4.3
 License: Proprietary
 
 Customer delivery date and time slot selection at WooCommerce checkout, with carrier, zone, and schedule management.
@@ -46,6 +46,11 @@ Jezpress Woo Delivery Dates lets your customers select a delivery date and time 
 6. Configure general options under *WooCommerce > Delivery Dates > Settings*.
 
 == Changelog ==
+
+= 1.4.3 =
+* Renamed asset files to drop the `jwdd-` prefix (`jwdd-admin.css` → `admin.css`, `jwdd-checkout.css` → `checkout.css`, `jwdd-admin.js` → `admin.js`, `jwdd-checkout.js` → `checkout.js`).
+* Updated admin markup to use shared design-system CSS classes (`admin-page-wrap`, `admin-page-card`, `admin-page-card-title`) across Settings, Carriers, Schedules, Holidays, Calendar, and Email tabs.
+* License tab now correctly loads admin CSS via a dedicated `enqueue_scripts` hook.
 
 = 1.4.2 =
 * Gate all admin tabs behind license validation — when no valid license is present, only the License tab is shown and all other tabs are hidden from the navigation

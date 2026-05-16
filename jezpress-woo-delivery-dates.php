@@ -3,7 +3,7 @@
  * Plugin Name: Jezpress Woo Delivery Dates
  * Plugin URI:  https://jezpress.com.au
  * Description: Customer delivery date and time slot selection at WooCommerce checkout, with carrier and schedule management.
- * Version:     1.4.2
+ * Version:     1.4.3
  * Author:      Jezpress
  * Author URI:  https://jezpress.com.au
  * Text Domain: jezpress-woo-delivery-dates
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'JWDD_VERSION', '1.4.2' );
+define( 'JWDD_VERSION', '1.4.3' );
 define( 'JWDD_DIR', plugin_dir_path( __FILE__ ) );
 define( 'JWDD_URL', plugin_dir_url( __FILE__ ) );
 

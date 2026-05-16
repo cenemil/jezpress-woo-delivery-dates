@@ -128,16 +128,16 @@ class JWDD_Admin {
 
 		wp_enqueue_style(
 			'jwdd-admin',
-			JWDD_URL . 'assets/css/jwdd-admin.css',
+			JWDD_URL . 'assets/css/admin.css',
 			array(),
-			filemtime( JWDD_DIR . 'assets/css/jwdd-admin.css' )
+			filemtime( JWDD_DIR . 'assets/css/admin.css' )
 		);
 
 		wp_enqueue_script(
 			'jwdd-admin',
-			JWDD_URL . 'assets/js/jwdd-admin.js',
+			JWDD_URL . 'assets/js/admin.js',
 			array(),
-			filemtime( JWDD_DIR . 'assets/js/jwdd-admin.js' ),
+			filemtime( JWDD_DIR . 'assets/js/admin.js' ),
 			true
 		);
 
@@ -298,7 +298,7 @@ class JWDD_Admin {
 		}
 		echo '</nav>';
 
-		echo '<div class="jwdd-tab-content">';
+		echo '<div class="admin-page-wrap">';
 
 		switch ( $current_tab ) {
 			case 'carriers':
@@ -341,11 +341,11 @@ class JWDD_Admin {
 	private function render_tab_settings() {
 		$settings = get_option( 'jwdd_settings', array() );
 		?>
-		<form method="post" action="options.php" style="max-width:800px; margin-top:20px;">
+		<div class="admin-page-card">
+			<form method="post" action="options.php">
 			<?php settings_fields( 'jwdd_settings_group' ); ?>
 
-			<div class="jwdd-card">
-				<h2><?php esc_html_e( 'Settings', 'jezpress-woo-delivery-dates' ); ?></h2>
+				<h2 class="admin-page-card-title"><?php esc_html_e( 'Settings', 'jezpress-woo-delivery-dates' ); ?></h2>
 
 				<table class="form-table" role="presentation">
 					<tr>
@@ -462,8 +462,8 @@ class JWDD_Admin {
 				</table>
 
 				<?php submit_button( __( 'Save Settings', 'jezpress-woo-delivery-dates' ) ); ?>
-			</div>
-		</form>
+			</form>
+		</div>
 		<?php
 	}
 
@@ -494,61 +494,59 @@ class JWDD_Admin {
 		$carriers = JWDD_Carriers::get_all();
 		$add_url  = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=carriers&action=add' );
 		?>
-		<div style="max-width:960px; margin-top:20px;">
 
-			<div class="jwdd-card">
-				<h2>
-					<?php esc_html_e( 'Delivery Carriers', 'jezpress-woo-delivery-dates' ); ?>
-					<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary button-small" style="margin-left:auto;">
-						<?php esc_html_e( '+ Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
-					</a>
-				</h2>
-
-				<div id="jwdd-carriers-feedback" class="jwdd-feedback" style="display:none;"></div>
-
-				<table class="widefat striped" id="jwdd-carriers-table">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Code', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
-						</tr>
-					</thead>
-					<tbody id="jwdd-carriers-tbody">
-						<?php if ( empty( $carriers ) ) : ?>
-							<tr id="jwdd-carriers-empty">
-								<td colspan="4"><?php esc_html_e( 'No carriers yet. Click &quot;+ Add Carrier&quot; to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
-							</tr>
-						<?php else : ?>
-						<?php foreach ( $carriers as $c ) : ?>
-							<?php $edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=carriers&action=edit&carrier_id=' . $c->id ); ?>
-							<tr id="jwdd-carrier-row-<?php echo esc_attr( $c->id ); ?>">
-								<td><strong><?php echo esc_html( $c->name ); ?></strong></td>
-								<td><code><?php echo esc_html( $c->code ); ?></code></td>
-								<td>
-									<?php if ( $c->is_active ) : ?>
-										<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
-									<?php else : ?>
-										<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
-									<?php endif; ?>
-								</td>
-								<td>
-									<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
-										<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
-									</a>
-									<button class="button button-small jwdd-delete-carrier"
-										   data-id="<?php echo esc_attr( $c->id ); ?>"
-										   data-name="<?php echo esc_attr( $c->name ); ?>">
-										<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
-									</button>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-						<?php endif; ?>
-					</tbody>
-				</table>
+		<div class="admin-page-card admin-page-card-full">
+			<h2 class="admin-page-card-title">
+				<?php esc_html_e( 'Delivery Carriers', 'jezpress-woo-delivery-dates' ); ?>
+			</h2>
+			<div id="jwdd-carriers-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<div style="margin-bottom: 16px;">
+				<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary">
+					<?php esc_html_e( '+ Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
+				</a>
 			</div>
+			<table class="widefat striped" id="jwdd-carriers-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Code', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
+					</tr>
+				</thead>
+				<tbody id="jwdd-carriers-tbody">
+					<?php if ( empty( $carriers ) ) : ?>
+						<tr id="jwdd-carriers-empty">
+							<td colspan="4"><?php esc_html_e( 'No carriers yet. Click &quot;+ Add Carrier&quot; to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
+						</tr>
+					<?php else : ?>
+					<?php foreach ( $carriers as $c ) : ?>
+						<?php $edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=carriers&action=edit&carrier_id=' . $c->id ); ?>
+						<tr id="jwdd-carrier-row-<?php echo esc_attr( $c->id ); ?>">
+							<td><strong><?php echo esc_html( $c->name ); ?></strong></td>
+							<td><code><?php echo esc_html( $c->code ); ?></code></td>
+							<td>
+								<?php if ( $c->is_active ) : ?>
+									<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
+								<?php else : ?>
+									<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
+								<?php endif; ?>
+							</td>
+							<td>
+								<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
+									<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
+								</a>
+								<button class="button button-small jwdd-delete-carrier"
+									   data-id="<?php echo esc_attr( $c->id ); ?>"
+									   data-name="<?php echo esc_attr( $c->name ); ?>">
+									<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
+								</button>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
 		</div>
 		<?php
 	}
@@ -569,84 +567,82 @@ class JWDD_Admin {
 			return;
 		}
 		?>
-		<div style="max-width:780px; margin-top:20px;">
+		<div class="admin-page-card">
 
-			<p style="margin-bottom:16px;">
+			<p style="margin: 0 0 30px 0;">
 				<a href="<?php echo esc_url( $list_url ); ?>" class="jwdd-back-link">
 					&#8592; <?php esc_html_e( 'Back to Carriers', 'jezpress-woo-delivery-dates' ); ?>
 				</a>
 			</p>
 
-			<div class="jwdd-card">
-				<h2>
-					<?php if ( $is_edit ) : ?>
-						<?php printf(
-							/* translators: %s: carrier name */
-							esc_html__( 'Edit Carrier: %s', 'jezpress-woo-delivery-dates' ),
-							'<em>' . esc_html( $carrier->name ) . '</em>'
-						); ?>
-					<?php else : ?>
-						<?php esc_html_e( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
-					<?php endif; ?>
-				</h2>
+			<h2 class="admin-page-card-title">
+				<?php if ( $is_edit ) : ?>
+					<?php printf(
+						/* translators: %s: carrier name */
+						esc_html__( 'Edit Carrier: %s', 'jezpress-woo-delivery-dates' ),
+						'<em>' . esc_html( $carrier->name ) . '</em>'
+					); ?>
+				<?php else : ?>
+					<?php esc_html_e( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
+				<?php endif; ?>
+			</h2>
 
-				<table class="form-table" role="presentation">
-					<tr>
-						<th><label for="jwdd_carrier_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
-						<td>
-							<input type="text" id="jwdd_carrier_name" class="regular-text"
-							   value="<?php echo $is_edit ? esc_attr( $carrier->name ) : ''; ?>"
-							   placeholder="<?php esc_attr_e( 'e.g. Australia Post', 'jezpress-woo-delivery-dates' ); ?>">
-						</td>
-					</tr>
-					<tr>
-						<th><label for="jwdd_carrier_code"><?php esc_html_e( 'Code', 'jezpress-woo-delivery-dates' ); ?></label></th>
-						<td>
-							<input type="text" id="jwdd_carrier_code" class="regular-text"
-							   value="<?php echo $is_edit ? esc_attr( $carrier->code ) : ''; ?>"
-							   placeholder="<?php esc_attr_e( 'e.g. auspost', 'jezpress-woo-delivery-dates' ); ?>">
-							<p class="description"><?php esc_html_e( 'Short identifier. Auto-generated from name if left blank.', 'jezpress-woo-delivery-dates' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
-						<td>
-							<label>
-								<input type="checkbox" id="jwdd_carrier_is_active" value="1"
-									<?php checked( $is_edit ? (bool) $carrier->is_active : true ); ?>>
-								<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
-							</label>
-						</td>
-					</tr>
-				</table>
+			<div id="jwdd-carrier-feedback" class="jwdd-feedback" style="display:none;"></div>
 
-				<input type="hidden" id="jwdd_carrier_id" value="<?php echo esc_attr( $carrier_id ); ?>">
+			<table class="form-table" role="presentation">
+				<tr>
+					<th><label for="jwdd_carrier_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+					<td>
+						<input type="text" id="jwdd_carrier_name" class="regular-text"
+						   value="<?php echo $is_edit ? esc_attr( $carrier->name ) : ''; ?>"
+						   placeholder="<?php esc_attr_e( 'e.g. Australia Post', 'jezpress-woo-delivery-dates' ); ?>">
+					</td>
+				</tr>
+				<tr>
+					<th><label for="jwdd_carrier_code"><?php esc_html_e( 'Code', 'jezpress-woo-delivery-dates' ); ?></label></th>
+					<td>
+						<input type="text" id="jwdd_carrier_code" class="regular-text"
+						   value="<?php echo $is_edit ? esc_attr( $carrier->code ) : ''; ?>"
+						   placeholder="<?php esc_attr_e( 'e.g. auspost', 'jezpress-woo-delivery-dates' ); ?>">
+						<p class="description"><?php esc_html_e( 'Short identifier. Auto-generated from name if left blank.', 'jezpress-woo-delivery-dates' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" id="jwdd_carrier_is_active" value="1"
+								<?php checked( $is_edit ? (bool) $carrier->is_active : true ); ?>>
+							<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
+						</label>
+					</td>
+				</tr>
+			</table>
 
-				<hr style="margin: 20px 0;">
+			<input type="hidden" id="jwdd_carrier_id" value="<?php echo esc_attr( $carrier_id ); ?>">
 
-				<h3><?php esc_html_e( 'Shipping Zones &amp; Estimated Delivery', 'jezpress-woo-delivery-dates' ); ?></h3>
-				<p class="description" style="margin-top:0; margin-bottom:14px;">
-					<?php esc_html_e( 'Map shipping zones to estimated delivery days for this carrier. Add multiple entries for different zones.', 'jezpress-woo-delivery-dates' ); ?>
-				</p>
+			<hr style="margin: 20px 0;">
 
-				<div id="jwdd-carrier-zones-list"></div>
+			<h3><?php esc_html_e( 'Shipping Zones &amp; Estimated Delivery', 'jezpress-woo-delivery-dates' ); ?></h3>
+			<p class="description" style="margin-top:0; margin-bottom:14px;">
+				<?php esc_html_e( 'Map shipping zones to estimated delivery days for this carrier. Add multiple entries for different zones.', 'jezpress-woo-delivery-dates' ); ?>
+			</p>
 
-				<p style="margin-top:10px;">
-					<button type="button" class="button" id="jwdd-add-zone-row">
-						<?php esc_html_e( '+ Add Zone', 'jezpress-woo-delivery-dates' ); ?>
-					</button>
-				</p>
+			<div id="jwdd-carrier-zones-list"></div>
 
-				<div id="jwdd-carrier-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<p style="margin-top:10px;">
+				<button type="button" class="button" id="jwdd-add-zone-row">
+					<?php esc_html_e( '+ Add Zone', 'jezpress-woo-delivery-dates' ); ?>
+				</button>
+			</p>
 
-				<p style="margin-top:16px;">
-					<button type="button" class="button button-primary" id="jwdd-save-carrier">
-						<?php echo $is_edit
-							? esc_html__( 'Update Carrier', 'jezpress-woo-delivery-dates' )
-							: esc_html__( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
-					</button>
-				</p>
-			</div>
+			<p style="margin-top:16px;">
+				<button type="button" class="button button-primary" id="jwdd-save-carrier">
+					<?php echo $is_edit
+						? esc_html__( 'Update Carrier', 'jezpress-woo-delivery-dates' )
+						: esc_html__( 'Add Carrier', 'jezpress-woo-delivery-dates' ); ?>
+				</button>
+			</p>
 		</div>
 		<?php
 	}
@@ -680,73 +676,72 @@ class JWDD_Admin {
 
 		$dow_abbr = array( 0 => 'Sun', 1 => 'Mon', 2 => 'Tue', 3 => 'Wed', 4 => 'Thu', 5 => 'Fri', 6 => 'Sat' );
 		?>
-		<div style="max-width:960px; margin-top:20px;">
-			<div class="jwdd-card">
-				<h2>
-					<?php esc_html_e( 'Schedules', 'jezpress-woo-delivery-dates' ); ?>
-					<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary button-small" style="margin-left:auto;">
-						<?php esc_html_e( '+ Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
-					</a>
-				</h2>
+		<div class="admin-page-card admin-page-card-full">
+			<h2 class="admin-page-card-title">
+				<?php esc_html_e( 'Schedules', 'jezpress-woo-delivery-dates' ); ?>
+			</h2>
 
-				<div id="jwdd-def-feedback" class="jwdd-feedback" style="display:none;"></div>
-
-				<table class="widefat striped" id="jwdd-schedule-defs-table">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Carrier', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Days', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
-						</tr>
-					</thead>
-					<tbody id="jwdd-schedule-defs-tbody">
-						<?php if ( empty( $defs ) ) : ?>
-							<tr id="jwdd-defs-empty">
-								<td colspan="5"><?php esc_html_e( 'No schedules yet. Click "Add Schedule" to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
-							</tr>
-						<?php else : ?>
-							<?php foreach ( $defs as $def ) : ?>
-								<?php
-								$days   = json_decode( $def->days_of_week, true ) ?: array();
-								$labels = array();
-								foreach ( $days as $d ) {
-									$day_num = is_array( $d ) ? ( isset( $d['day'] ) ? (int) $d['day'] : null ) : (int) $d;
-									if ( null !== $day_num && isset( $dow_abbr[ $day_num ] ) ) {
-										$labels[] = $dow_abbr[ $day_num ];
-									}
-								}
-								$days_display = empty( $labels ) ? '—' : implode( ', ', $labels );
-								$edit_url     = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=schedules&action=edit&def_id=' . $def->id );
-								?>
-								<tr id="jwdd-def-row-<?php echo esc_attr( $def->id ); ?>">
-									<td><strong><?php echo esc_html( $def->name ); ?></strong></td>
-									<td><?php echo esc_html( $def->carrier_name ?: '—' ); ?></td>
-									<td><?php echo esc_html( $days_display ); ?></td>
-									<td>
-										<?php if ( $def->is_active ) : ?>
-											<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
-										<?php else : ?>
-											<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
-										<?php endif; ?>
-									</td>
-									<td>
-										<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
-											<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
-										</a>
-										<button class="button button-small jwdd-delete-schedule-def"
-												data-id="<?php echo esc_attr( $def->id ); ?>"
-												data-name="<?php echo esc_attr( $def->name ); ?>">
-											<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
-										</button>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						<?php endif; ?>
-					</tbody>
-				</table>
+			<div id="jwdd-def-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<div style="margin-bottom: 16px;">
+				<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary">
+					<?php esc_html_e( '+ Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
+				</a>
 			</div>
+			<table class="widefat striped" id="jwdd-schedule-defs-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Carrier', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Days', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
+					</tr>
+				</thead>
+				<tbody id="jwdd-schedule-defs-tbody">
+					<?php if ( empty( $defs ) ) : ?>
+						<tr id="jwdd-defs-empty">
+							<td colspan="5"><?php esc_html_e( 'No schedules yet. Click "Add Schedule" to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
+						</tr>
+					<?php else : ?>
+						<?php foreach ( $defs as $def ) : ?>
+							<?php
+							$days   = json_decode( $def->days_of_week, true ) ?: array();
+							$labels = array();
+							foreach ( $days as $d ) {
+								$day_num = is_array( $d ) ? ( isset( $d['day'] ) ? (int) $d['day'] : null ) : (int) $d;
+								if ( null !== $day_num && isset( $dow_abbr[ $day_num ] ) ) {
+									$labels[] = $dow_abbr[ $day_num ];
+								}
+							}
+							$days_display = empty( $labels ) ? '—' : implode( ', ', $labels );
+							$edit_url     = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=schedules&action=edit&def_id=' . $def->id );
+							?>
+							<tr id="jwdd-def-row-<?php echo esc_attr( $def->id ); ?>">
+								<td><strong><?php echo esc_html( $def->name ); ?></strong></td>
+								<td><?php echo esc_html( $def->carrier_name ?: '—' ); ?></td>
+								<td><?php echo esc_html( $days_display ); ?></td>
+								<td>
+									<?php if ( $def->is_active ) : ?>
+										<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
+									<?php else : ?>
+										<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
+										<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
+									</a>
+									<button class="button button-small jwdd-delete-schedule-def"
+											data-id="<?php echo esc_attr( $def->id ); ?>"
+											data-name="<?php echo esc_attr( $def->name ); ?>">
+										<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
 		</div>
 		<?php
 	}
@@ -803,145 +798,140 @@ class JWDD_Admin {
 			}
 		}
 		?>
-		<div style="max-width:780px; margin-top:20px;">
+		<div class="admin-page-card">
 
-			<p style="margin-bottom:16px;">
+			<p style="margin: 0 0 30px 0;">
 				<a href="<?php echo esc_url( $list_url ); ?>" class="jwdd-back-link">
 					← <?php esc_html_e( 'Back to Schedules', 'jezpress-woo-delivery-dates' ); ?>
 				</a>
 			</p>
 
 			<!-- Schedule definition form -->
-			<div class="jwdd-card">
-				<h2>
-					<?php if ( $is_edit ) : ?>
-						<?php
-						printf(
-							/* translators: %s: schedule name */
-							esc_html__( 'Edit Schedule: %s', 'jezpress-woo-delivery-dates' ),
-							'<em>' . esc_html( $def->name ) . '</em>'
-						);
-						?>
-					<?php else : ?>
-						<?php esc_html_e( 'Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
-					<?php endif; ?>
-				</h2>
+			<h2 class="admin-page-card-title">
+				<?php if ( $is_edit ) : ?>
+					<?php
+					printf(
+						/* translators: %s: schedule name */
+						esc_html__( 'Edit Schedule: %s', 'jezpress-woo-delivery-dates' ),
+						'<em>' . esc_html( $def->name ) . '</em>'
+					);
+					?>
+				<?php else : ?>
+					<?php esc_html_e( 'Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
+				<?php endif; ?>
+			</h2>
 
-				<div id="jwdd-def-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<div id="jwdd-def-feedback" class="jwdd-feedback" style="display:none;"></div>
 
-				<table class="form-table" role="presentation">
-					<tr>
-						<th><label for="jwdd_def_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
-						<td>
-							<input type="text" id="jwdd_def_name" class="regular-text"
-								   value="<?php echo $is_edit ? esc_attr( $def->name ) : ''; ?>"
-								   placeholder="<?php esc_attr_e( 'e.g. Morning Delivery', 'jezpress-woo-delivery-dates' ); ?>">
-						</td>
-					</tr>
-					<tr>
-						<th><label for="jwdd_def_carrier"><?php esc_html_e( 'Carrier', 'jezpress-woo-delivery-dates' ); ?></label></th>
-						<td>
-							<select id="jwdd_def_carrier">
-								<option value="0"><?php esc_html_e( '— No specific carrier —', 'jezpress-woo-delivery-dates' ); ?></option>
-								<?php foreach ( $carriers as $c ) : ?>
-									<option value="<?php echo esc_attr( $c->id ); ?>"
-										<?php selected( $is_edit ? (int) $def->carrier_id : 0, (int) $c->id ); ?>>
-										<?php echo esc_html( $c->name ); ?>
-									</option>
-								<?php endforeach; ?>
-							</select>
-						</td>
-					</tr>
-					<tr>
-						<th style="vertical-align:top; padding-top:14px;"><?php esc_html_e( 'Days &amp; Times', 'jezpress-woo-delivery-dates' ); ?></th>
-						<td>
-							<?php foreach ( $dow_labels as $num => $lbl ) : ?>
-								<?php
-								$is_checked = isset( $days_config[ $num ] );
-								$cutoff_val = $is_checked ? $days_config[ $num ]['cutoff'] : '';
-								$slot_count = $is_checked ? count( $days_config[ $num ]['slots'] ) : 0;
-								?>
-								<div class="jwdd-dow-row">
-									<label class="jwdd-dow-label">
-										<input type="checkbox" class="jwdd-def-dow" value="<?php echo esc_attr( $num ); ?>"
-											<?php checked( $is_checked ); ?>>
-										<?php echo esc_html( $lbl ); ?>
-									</label>
-									<div class="jwdd-dow-times">
-										<label class="jwdd-dow-cutoff-lbl"><?php esc_html_e( 'Cutoff:', 'jezpress-woo-delivery-dates' ); ?></label>
-										<input type="time" id="jwdd_dow_cutoff_<?php echo esc_attr( $num ); ?>"
-											   class="jwdd-dow-cutoff"
-											   value="<?php echo esc_attr( $cutoff_val ); ?>"
-											   <?php echo ! $is_checked ? 'disabled' : ''; ?>>
-										<button type="button" class="button button-small jwdd-dow-cutoff-clear"
-											   title="<?php esc_attr_e( 'Clear cutoff time', 'jezpress-woo-delivery-dates' ); ?>"
-											   <?php echo ! $is_checked ? 'disabled' : ''; ?>>&#x2715;</button>
-										<button type="button" class="button button-small jwdd-dow-slots-btn"
-											   data-day="<?php echo esc_attr( $num ); ?>"
-											   data-name="<?php echo esc_attr( $lbl ); ?>"
-											   <?php echo ! $is_checked ? 'disabled' : ''; ?>>
-											<?php esc_html_e( 'Time Slots', 'jezpress-woo-delivery-dates' ); ?>
-											<span class="jwdd-dow-slot-count">(<?php echo absint( $slot_count ); ?>)</span>
-										</button>
-									</div>
-								</div>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th><label for="jwdd_def_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+					<td>
+						<input type="text" id="jwdd_def_name" class="regular-text"
+							   value="<?php echo $is_edit ? esc_attr( $def->name ) : ''; ?>"
+							   placeholder="<?php esc_attr_e( 'e.g. Morning Delivery', 'jezpress-woo-delivery-dates' ); ?>">
+					</td>
+				</tr>
+				<tr>
+					<th><label for="jwdd_def_carrier"><?php esc_html_e( 'Carrier', 'jezpress-woo-delivery-dates' ); ?></label></th>
+					<td>
+						<select id="jwdd_def_carrier">
+							<option value="0"><?php esc_html_e( '— No specific carrier —', 'jezpress-woo-delivery-dates' ); ?></option>
+							<?php foreach ( $carriers as $c ) : ?>
+								<option value="<?php echo esc_attr( $c->id ); ?>"
+									<?php selected( $is_edit ? (int) $def->carrier_id : 0, (int) $c->id ); ?>>
+									<?php echo esc_html( $c->name ); ?>
+								</option>
 							<?php endforeach; ?>
-						</td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
-						<td>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th style="vertical-align:top; padding-top:14px;"><?php esc_html_e( 'Days &amp; Times', 'jezpress-woo-delivery-dates' ); ?></th>
+					<td>
+						<?php foreach ( $dow_labels as $num => $lbl ) : ?>
+							<?php
+							$is_checked = isset( $days_config[ $num ] );
+							$cutoff_val = $is_checked ? $days_config[ $num ]['cutoff'] : '';
+							$slot_count = $is_checked ? count( $days_config[ $num ]['slots'] ) : 0;
+							?>
+							<div class="jwdd-dow-row">
+								<label class="jwdd-dow-label">
+									<input type="checkbox" class="jwdd-def-dow" value="<?php echo esc_attr( $num ); ?>"
+										<?php checked( $is_checked ); ?>>
+									<?php echo esc_html( $lbl ); ?>
+								</label>
+								<div class="jwdd-dow-times">
+									<label class="jwdd-dow-cutoff-lbl"><?php esc_html_e( 'Cutoff:', 'jezpress-woo-delivery-dates' ); ?></label>
+									<input type="time" id="jwdd_dow_cutoff_<?php echo esc_attr( $num ); ?>"
+										   class="jwdd-dow-cutoff"
+										   value="<?php echo esc_attr( $cutoff_val ); ?>"
+										   <?php echo ! $is_checked ? 'disabled' : ''; ?>>
+									<button type="button" class="button button-small jwdd-dow-cutoff-clear"
+										   title="<?php esc_attr_e( 'Clear cutoff time', 'jezpress-woo-delivery-dates' ); ?>"
+										   <?php echo ! $is_checked ? 'disabled' : ''; ?>>&#x2715;</button>
+									<button type="button" class="button button-small jwdd-dow-slots-btn"
+										   data-day="<?php echo esc_attr( $num ); ?>"
+										   data-name="<?php echo esc_attr( $lbl ); ?>"
+										   <?php echo ! $is_checked ? 'disabled' : ''; ?>>
+										<?php esc_html_e( 'Time Slots', 'jezpress-woo-delivery-dates' ); ?>
+										<span class="jwdd-dow-slot-count">(<?php echo absint( $slot_count ); ?>)</span>
+									</button>
+								</div>
+							</div>
+						<?php endforeach; ?>
+					</td>
+				</tr>
+				<tr>
+					<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" id="jwdd_def_is_active" value="1"
+								<?php checked( $is_edit ? (bool) $def->is_active : true ); ?>>
+							<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
+						</label>
+					</td>
+				</tr>
+			</table>
+			<input type="hidden" id="jwdd_def_id" value="<?php echo esc_attr( $def_id ); ?>">
+			<p>
+				<button type="button" class="button button-primary" id="jwdd-save-schedule-def">
+					<?php echo $is_edit
+						? esc_html__( 'Update Schedule', 'jezpress-woo-delivery-dates' )
+						: esc_html__( 'Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
+				</button>
+			</p>
+
+			<!-- Time slots modal -->
+			<div id="jwdd-slot-modal" class="jwdd-modal" style="display:none;" role="dialog" aria-modal="true">
+				<div class="jwdd-modal-backdrop"></div>
+				<div class="jwdd-modal-box">
+					<div class="jwdd-modal-header">
+						<h3 id="jwdd-modal-title"><?php esc_html_e( 'Time Slots', 'jezpress-woo-delivery-dates' ); ?></h3>
+						<button type="button" class="jwdd-modal-close" aria-label="<?php esc_attr_e( 'Close', 'jezpress-woo-delivery-dates' ); ?>">&#x2715;</button>
+					</div>
+					<div class="jwdd-modal-body">
+						<div id="jwdd-modal-slots-list"></div>
+						<hr class="jwdd-modal-divider">
+						<h4><?php esc_html_e( 'Add Time Slot', 'jezpress-woo-delivery-dates' ); ?></h4>
+						<div class="jwdd-modal-form">
 							<label>
-								<input type="checkbox" id="jwdd_def_is_active" value="1"
-									<?php checked( $is_edit ? (bool) $def->is_active : true ); ?>>
-								<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
+								<?php esc_html_e( 'Start:', 'jezpress-woo-delivery-dates' ); ?>
+								<input type="time" id="jwdd_slot_start" value="09:00">
 							</label>
-						</td>
-					</tr>
-				</table>
-
-				<input type="hidden" id="jwdd_def_id" value="<?php echo esc_attr( $def_id ); ?>">
-
-				<p>
-					<button type="button" class="button button-primary" id="jwdd-save-schedule-def">
-						<?php echo $is_edit
-							? esc_html__( 'Update Schedule', 'jezpress-woo-delivery-dates' )
-							: esc_html__( 'Add Schedule', 'jezpress-woo-delivery-dates' ); ?>
-					</button>
-				</p>
-			</div>
-
-		<!-- Time slots modal -->
-		<div id="jwdd-slot-modal" class="jwdd-modal" style="display:none;" role="dialog" aria-modal="true">
-			<div class="jwdd-modal-backdrop"></div>
-			<div class="jwdd-modal-box">
-				<div class="jwdd-modal-header">
-					<h3 id="jwdd-modal-title"><?php esc_html_e( 'Time Slots', 'jezpress-woo-delivery-dates' ); ?></h3>
-					<button type="button" class="jwdd-modal-close" aria-label="<?php esc_attr_e( 'Close', 'jezpress-woo-delivery-dates' ); ?>">&#x2715;</button>
-				</div>
-				<div class="jwdd-modal-body">
-					<div id="jwdd-modal-slots-list"></div>
-					<hr class="jwdd-modal-divider">
-					<h4><?php esc_html_e( 'Add Time Slot', 'jezpress-woo-delivery-dates' ); ?></h4>
-					<div class="jwdd-modal-form">
-						<label>
-							<?php esc_html_e( 'Start:', 'jezpress-woo-delivery-dates' ); ?>
-							<input type="time" id="jwdd_slot_start" value="09:00">
-						</label>
-						<label>
-							<?php esc_html_e( 'End:', 'jezpress-woo-delivery-dates' ); ?>
-							<input type="time" id="jwdd_slot_end" value="12:00">
-						</label>
-						<input type="text" id="jwdd_slot_label" class="regular-text"
-							   placeholder="<?php esc_attr_e( 'Label (e.g. Morning Delivery)', 'jezpress-woo-delivery-dates' ); ?>">
-						<button type="button" class="button button-primary" id="jwdd-modal-add-slot">
-							<?php esc_html_e( 'Add Slot', 'jezpress-woo-delivery-dates' ); ?>
-						</button>
+							<label>
+								<?php esc_html_e( 'End:', 'jezpress-woo-delivery-dates' ); ?>
+								<input type="time" id="jwdd_slot_end" value="12:00">
+							</label>
+							<input type="text" id="jwdd_slot_label" class="regular-text"
+								   placeholder="<?php esc_attr_e( 'Label (e.g. Morning Delivery)', 'jezpress-woo-delivery-dates' ); ?>">
+							<button type="button" class="button button-primary" id="jwdd-modal-add-slot">
+								<?php esc_html_e( 'Add Slot', 'jezpress-woo-delivery-dates' ); ?>
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
-
 		</div>
 		<?php
 	}
@@ -979,83 +969,82 @@ class JWDD_Admin {
 			$carrier_map[ (int) $c->id ] = $c->name;
 		}
 		?>
-		<div style="max-width:960px; margin-top:20px;">
-			<div class="jwdd-card">
-				<h2>
-					<?php esc_html_e( 'Holidays', 'jezpress-woo-delivery-dates' ); ?>
-					<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary button-small" style="margin-left:auto;">
-						<?php esc_html_e( '+ Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
-					</a>
-				</h2>
+		<div class="admin-page-card admin-page-card-full">
+			<h2 class="admin-page-card-title">
+				<?php esc_html_e( 'Holidays', 'jezpress-woo-delivery-dates' ); ?>
+			</h2>
 
-				<div id="jwdd-holidays-feedback" class="jwdd-feedback" style="display:none;"></div>
-
-				<table class="widefat striped" id="jwdd-holidays-table">
-					<thead>
-						<tr>
-							<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
-							<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
-						</tr>
-					</thead>
-					<tbody id="jwdd-holidays-tbody">
-						<?php if ( empty( $holidays ) ) : ?>
-							<tr id="jwdd-holidays-empty">
-								<td colspan="6"><?php esc_html_e( 'No holidays yet. Click &quot;+ Add Holiday&quot; to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
-							</tr>
-						<?php else : ?>
-							<?php foreach ( $holidays as $h ) : ?>
-								<?php
-								$h_cids    = JWDD_Holidays::decode_carrier_ids( $h->carrier_ids );
-								$cid_names = array();
-								foreach ( $h_cids as $cid ) {
-									if ( isset( $carrier_map[ $cid ] ) ) {
-										$cid_names[] = $carrier_map[ $cid ];
-									}
-								}
-								$all_carriers_full = empty( $h_cids )
-									? __( 'All Carriers', 'jezpress-woo-delivery-dates' )
-									: implode( ', ', $cid_names );
-								if ( empty( $h_cids ) ) {
-									$carriers_display = $all_carriers_full;
-								} elseif ( count( $cid_names ) === 1 ) {
-									$carriers_display = $cid_names[0];
-								} else {
-									$carriers_display = $cid_names[0] . '...';
-								}
-								$edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=edit&holiday_id=' . $h->id );
-								?>
-								<tr id="jwdd-holiday-row-<?php echo esc_attr( $h->id ); ?>">
-									<td><strong><?php echo esc_html( $h->name ); ?></strong></td>
-									<td title="<?php echo esc_attr( $all_carriers_full ); ?>"><?php echo esc_html( $carriers_display ); ?></td>
-									<td><?php echo esc_html( $h->date_from ); ?></td>
-									<td><?php echo esc_html( $h->date_to ); ?></td>
-									<td>
-										<?php if ( $h->is_active ) : ?>
-											<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
-										<?php else : ?>
-											<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
-										<?php endif; ?>
-									</td>
-									<td>
-										<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
-											<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
-										</a>
-										<button class="button button-small jwdd-delete-holiday"
-												data-id="<?php echo esc_attr( $h->id ); ?>"
-												data-name="<?php echo esc_attr( $h->name ); ?>">
-											<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
-										</button>
-									</td>
-								</tr>
-							<?php endforeach; ?>
-						<?php endif; ?>
-					</tbody>
-				</table>
+			<div id="jwdd-holidays-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<div style="margin-bottom: 16px;">
+				<a href="<?php echo esc_url( $add_url ); ?>" class="button button-primary">
+					<?php esc_html_e( '+ Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+				</a>
 			</div>
+			<table class="widefat striped" id="jwdd-holidays-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Status', 'jezpress-woo-delivery-dates' ); ?></th>
+						<th><?php esc_html_e( 'Actions', 'jezpress-woo-delivery-dates' ); ?></th>
+					</tr>
+				</thead>
+				<tbody id="jwdd-holidays-tbody">
+					<?php if ( empty( $holidays ) ) : ?>
+						<tr id="jwdd-holidays-empty">
+							<td colspan="6"><?php esc_html_e( 'No holidays yet. Click &quot;+ Add Holiday&quot; to create one.', 'jezpress-woo-delivery-dates' ); ?></td>
+						</tr>
+					<?php else : ?>
+						<?php foreach ( $holidays as $h ) : ?>
+							<?php
+							$h_cids    = JWDD_Holidays::decode_carrier_ids( $h->carrier_ids );
+							$cid_names = array();
+							foreach ( $h_cids as $cid ) {
+								if ( isset( $carrier_map[ $cid ] ) ) {
+									$cid_names[] = $carrier_map[ $cid ];
+								}
+							}
+							$all_carriers_full = empty( $h_cids )
+								? __( 'All Carriers', 'jezpress-woo-delivery-dates' )
+								: implode( ', ', $cid_names );
+							if ( empty( $h_cids ) ) {
+								$carriers_display = $all_carriers_full;
+							} elseif ( count( $cid_names ) === 1 ) {
+								$carriers_display = $cid_names[0];
+							} else {
+								$carriers_display = $cid_names[0] . '...';
+							}
+							$edit_url = admin_url( 'admin.php?page=jwdd-delivery-dates&tab=holidays&action=edit&holiday_id=' . $h->id );
+							?>
+							<tr id="jwdd-holiday-row-<?php echo esc_attr( $h->id ); ?>">
+								<td><strong><?php echo esc_html( $h->name ); ?></strong></td>
+								<td title="<?php echo esc_attr( $all_carriers_full ); ?>"><?php echo esc_html( $carriers_display ); ?></td>
+								<td><?php echo esc_html( $h->date_from ); ?></td>
+								<td><?php echo esc_html( $h->date_to ); ?></td>
+								<td>
+									<?php if ( $h->is_active ) : ?>
+										<span class="jwdd-badge jwdd-badge-active"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>
+									<?php else : ?>
+										<span class="jwdd-badge jwdd-badge-inactive"><?php esc_html_e( 'Inactive', 'jezpress-woo-delivery-dates' ); ?></span>
+									<?php endif; ?>
+								</td>
+								<td>
+									<a href="<?php echo esc_url( $edit_url ); ?>" class="button button-small">
+										<?php esc_html_e( 'Edit', 'jezpress-woo-delivery-dates' ); ?>
+									</a>
+									<button class="button button-small jwdd-delete-holiday"
+											data-id="<?php echo esc_attr( $h->id ); ?>"
+											data-name="<?php echo esc_attr( $h->name ); ?>">
+										<?php esc_html_e( 'Delete', 'jezpress-woo-delivery-dates' ); ?>
+									</button>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+				</tbody>
+			</table>
 		</div>
 		<?php
 	}
@@ -1077,96 +1066,92 @@ class JWDD_Admin {
 			return;
 		}
 		?>
-		<div style="max-width:780px; margin-top:20px;">
-
-			<p style="margin-bottom:16px;">
+		<div class="admin-page-card">
+			<p style="margin: 0 0 30px 0;">
 				<a href="<?php echo esc_url( $list_url ); ?>" class="jwdd-back-link">
 					&#8592; <?php esc_html_e( 'Back to Holidays', 'jezpress-woo-delivery-dates' ); ?>
 				</a>
 			</p>
+			<h2 class="admin-page-card-title">
+				<?php if ( $is_edit ) : ?>
+					<?php printf(
+						/* translators: %s: holiday name */
+						esc_html__( 'Edit Holiday: %s', 'jezpress-woo-delivery-dates' ),
+						'<em>' . esc_html( $holiday->name ) . '</em>'
+					); ?>
+				<?php else : ?>
+					<?php esc_html_e( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+				<?php endif; ?>
+			</h2>
 
-			<div class="jwdd-card">
-				<h2>
-					<?php if ( $is_edit ) : ?>
-						<?php printf(
-							/* translators: %s: holiday name */
-							esc_html__( 'Edit Holiday: %s', 'jezpress-woo-delivery-dates' ),
-							'<em>' . esc_html( $holiday->name ) . '</em>'
-						); ?>
-					<?php else : ?>
-						<?php esc_html_e( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
-					<?php endif; ?>
-				</h2>
+			<div id="jwdd-holiday-feedback" class="jwdd-feedback" style="display:none;"></div>
 
-				<div id="jwdd-holiday-feedback" class="jwdd-feedback" style="display:none;"></div>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th><label for="jwdd_holiday_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+					<td>
+						<input type="text" id="jwdd_holiday_name" class="regular-text"
+							   value="<?php echo $is_edit ? esc_attr( $holiday->name ) : ''; ?>"
+							   placeholder="<?php esc_attr_e( 'e.g. Christmas Day', 'jezpress-woo-delivery-dates' ); ?>">
+					</td>
+				</tr>
+				<tr>
+					<th style="vertical-align:top; padding-top:14px;"><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
+					<td>
+						<?php
+						$checked_cids = $is_edit ? JWDD_Holidays::decode_carrier_ids( $holiday->carrier_ids ) : array();
+						?>
+						<?php if ( empty( $carriers ) ) : ?>
+							<p class="description"><?php esc_html_e( 'No carriers configured. This holiday will apply to all deliveries.', 'jezpress-woo-delivery-dates' ); ?></p>
+						<?php else : ?>
+							<select id="jwdd-holiday-carriers" multiple size="<?php echo min( count( $carriers ), 6 ); ?>" style="min-width:260px;">
+								<?php foreach ( $carriers as $c ) : ?>
+									<option value="<?php echo esc_attr( $c->id ); ?>"
+										<?php selected( in_array( (int) $c->id, $checked_cids, true ) ); ?>>
+										<?php echo esc_html( $c->name ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description" style="margin-top:6px;"><?php esc_html_e( 'Hold Ctrl / Cmd to select multiple. Leave all deselected to apply to all carriers.', 'jezpress-woo-delivery-dates' ); ?></p>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th><label for="jwdd_holiday_date_from"><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+					<td>
+						<input type="date" id="jwdd_holiday_date_from" class="regular-text"
+							   value="<?php echo $is_edit ? esc_attr( $holiday->date_from ) : ''; ?>">
+					</td>
+				</tr>
+				<tr>
+					<th><label for="jwdd_holiday_date_to"><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
+					<td>
+						<input type="date" id="jwdd_holiday_date_to" class="regular-text"
+							   value="<?php echo $is_edit ? esc_attr( $holiday->date_to ) : ''; ?>">
+						<p class="description"><?php esc_html_e( 'For a single-day holiday, set From and To to the same date.', 'jezpress-woo-delivery-dates' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
+					<td>
+						<label>
+							<input type="checkbox" id="jwdd_holiday_is_active" value="1"
+								<?php checked( $is_edit ? (bool) $holiday->is_active : true ); ?>>
+							<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
+						</label>
+					</td>
+				</tr>
+			</table>
 
-				<table class="form-table" role="presentation">
-					<tr>
-						<th><label for="jwdd_holiday_name"><?php esc_html_e( 'Name', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
-						<td>
-							<input type="text" id="jwdd_holiday_name" class="regular-text"
-								   value="<?php echo $is_edit ? esc_attr( $holiday->name ) : ''; ?>"
-								   placeholder="<?php esc_attr_e( 'e.g. Christmas Day', 'jezpress-woo-delivery-dates' ); ?>">
-						</td>
-					</tr>
-					<tr>
-						<th style="vertical-align:top; padding-top:14px;"><?php esc_html_e( 'Holiday For', 'jezpress-woo-delivery-dates' ); ?></th>
-						<td>
-							<?php
-							$checked_cids = $is_edit ? JWDD_Holidays::decode_carrier_ids( $holiday->carrier_ids ) : array();
-							?>
-							<?php if ( empty( $carriers ) ) : ?>
-								<p class="description"><?php esc_html_e( 'No carriers configured. This holiday will apply to all deliveries.', 'jezpress-woo-delivery-dates' ); ?></p>
-							<?php else : ?>
-								<select id="jwdd-holiday-carriers" multiple size="<?php echo min( count( $carriers ), 6 ); ?>" style="min-width:260px;">
-									<?php foreach ( $carriers as $c ) : ?>
-										<option value="<?php echo esc_attr( $c->id ); ?>"
-											<?php selected( in_array( (int) $c->id, $checked_cids, true ) ); ?>>
-											<?php echo esc_html( $c->name ); ?>
-										</option>
-									<?php endforeach; ?>
-								</select>
-								<p class="description" style="margin-top:6px;"><?php esc_html_e( 'Hold Ctrl / Cmd to select multiple. Leave all deselected to apply to all carriers.', 'jezpress-woo-delivery-dates' ); ?></p>
-							<?php endif; ?>
-						</td>
-					</tr>
-					<tr>
-						<th><label for="jwdd_holiday_date_from"><?php esc_html_e( 'From', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
-						<td>
-							<input type="date" id="jwdd_holiday_date_from" class="regular-text"
-								   value="<?php echo $is_edit ? esc_attr( $holiday->date_from ) : ''; ?>">
-						</td>
-					</tr>
-					<tr>
-						<th><label for="jwdd_holiday_date_to"><?php esc_html_e( 'To', 'jezpress-woo-delivery-dates' ); ?> <span class="required">*</span></label></th>
-						<td>
-							<input type="date" id="jwdd_holiday_date_to" class="regular-text"
-								   value="<?php echo $is_edit ? esc_attr( $holiday->date_to ) : ''; ?>">
-							<p class="description"><?php esc_html_e( 'For a single-day holiday, set From and To to the same date.', 'jezpress-woo-delivery-dates' ); ?></p>
-						</td>
-					</tr>
-					<tr>
-						<th><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></th>
-						<td>
-							<label>
-								<input type="checkbox" id="jwdd_holiday_is_active" value="1"
-									<?php checked( $is_edit ? (bool) $holiday->is_active : true ); ?>>
-								<?php esc_html_e( 'Enabled', 'jezpress-woo-delivery-dates' ); ?>
-							</label>
-						</td>
-					</tr>
-				</table>
+			<input type="hidden" id="jwdd_holiday_id" value="<?php echo esc_attr( $holiday_id ); ?>">
 
-				<input type="hidden" id="jwdd_holiday_id" value="<?php echo esc_attr( $holiday_id ); ?>">
-
-				<p>
-					<button type="button" class="button button-primary" id="jwdd-save-holiday">
-						<?php echo $is_edit
-							? esc_html__( 'Update Holiday', 'jezpress-woo-delivery-dates' )
-							: esc_html__( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
-					</button>
-				</p>
-			</div>
+			<p>
+				<button type="button" class="button button-primary" id="jwdd-save-holiday">
+					<?php echo $is_edit
+						? esc_html__( 'Update Holiday', 'jezpress-woo-delivery-dates' )
+						: esc_html__( 'Add Holiday', 'jezpress-woo-delivery-dates' ); ?>
+				</button>
+			</p>
 		</div>
 		<?php
 	}
@@ -1231,11 +1216,11 @@ class JWDD_Admin {
 		$sender_name = $es['sender_name'] ?? '';
 		$content     = $es['content']     ?? '';
 		?>
-		<form method="post" action="options.php" style="max-width:800px; margin-top:20px;">
-			<?php settings_fields( 'jwdd_email_settings_group' ); ?>
+		<div class="admin-page-card">
+			<form method="post" action="options.php">
+				<?php settings_fields( 'jwdd_email_settings_group' ); ?>
 
-			<div class="jwdd-card">
-				<h2><?php esc_html_e( 'Shipping Confirmation Email', 'jezpress-woo-delivery-dates' ); ?></h2>
+				<h2 class="admin-page-card-title"><?php esc_html_e( 'Shipping Confirmation Email', 'jezpress-woo-delivery-dates' ); ?></h2>
 				<p class="description" style="margin-bottom:16px;">
 					<?php esc_html_e( 'Manually sent to the customer from the order edit screen. Check the "Send shipping confirmation email" checkbox in the Delivery Details panel and save the order to trigger this email.', 'jezpress-woo-delivery-dates' ); ?>
 				</p>
@@ -1288,8 +1273,8 @@ class JWDD_Admin {
 				</table>
 
 				<?php submit_button( __( 'Save Email Settings', 'jezpress-woo-delivery-dates' ) ); ?>
-			</div>
-		</form>
+			</form>
+		</div>
 		<?php
 	}
 

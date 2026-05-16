@@ -104,6 +104,7 @@ class JWDD_License {
 		add_action( 'admin_init',    array( $this, 'handle_license_actions' ) );
 		add_action( 'admin_init',    array( $this, 'verify_integrity' ), 1 );
 		add_action( 'admin_notices', array( $this, 'admin_notices' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 
 		add_filter( 'plugin_action_links_' . plugin_basename( $this->plugin_file ), array( $this, 'plugin_action_links' ) );
 
@@ -647,6 +648,19 @@ class JWDD_License {
 		}
 	}
 
+	public function enqueue_scripts( $hook ) {
+		if ( 'woocommerce_page_jwdd-delivery-dates' !== $hook ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'jwdd-admin',
+			JWDD_URL . 'assets/css/admin.css',
+			array(),
+			JWDD_VERSION
+		);
+	}
+
 	/**
 	 * Add Settings and License links to plugin action links.
 	 *
@@ -681,12 +695,12 @@ class JWDD_License {
 		$is_active    = $this->is_valid();
 		$license_key  = isset( $license_data['key'] ) ? $license_data['key'] : '';
 		?>
-		<div style="max-width:800px; margin-top:20px;">
+		<div class="admin-page-wrap">
 
 			<?php settings_errors( $this->menu_slug ); ?>
 
-			<div style="background:#fff; border:1px solid #c3c4c7; padding:20px 24px; margin-top:16px;">
-				<h2>
+			<div class="admin-page-card">
+				<h2 class="admin-page-card-title">
 					<?php esc_html_e( 'License Status', 'jezpress-woo-delivery-dates' ); ?>
 					<?php if ( $is_active ) : ?>
 						<span style="display:inline-block;padding:2px 10px;border-radius:3px;font-size:12px;font-weight:600;background:#d1fae5;color:#065f46;margin-left:8px;"><?php esc_html_e( 'Active', 'jezpress-woo-delivery-dates' ); ?></span>

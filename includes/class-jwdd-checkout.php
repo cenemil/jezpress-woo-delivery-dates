@@ -123,16 +123,16 @@ class JWDD_Checkout {
 
 		wp_enqueue_style(
 			'jwdd-checkout',
-			JWDD_URL . 'assets/css/jwdd-checkout.css',
+			JWDD_URL . 'assets/css/checkout.css',
 			array(),
-			filemtime( JWDD_DIR . 'assets/css/jwdd-checkout.css' )
+			filemtime( JWDD_DIR . 'assets/css/checkout.css' )
 		);
 
 		wp_enqueue_script(
 			'jwdd-checkout',
-			JWDD_URL . 'assets/js/jwdd-checkout.js',
+			JWDD_URL . 'assets/js/checkout.js',
 			array( 'jquery', 'jquery-ui-datepicker' ),
-			filemtime( JWDD_DIR . 'assets/js/jwdd-checkout.js' ),
+			filemtime( JWDD_DIR . 'assets/js/checkout.js' ),
 			true
 		);
 
