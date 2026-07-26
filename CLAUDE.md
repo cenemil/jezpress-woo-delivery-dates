@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Class prefix:** `JWDD_`
 - **DB option (settings):** `jwdd_settings`
 - **DB tables:** `{prefix}jwdd_carriers`, `{prefix}jwdd_schedules`, `{prefix}jwdd_schedule_defs`, `{prefix}jwdd_holidays`
-- **Current version:** `1.4.3`
+- **Current version:** `1.4.4`
 - **Current DB version:** `JWDD_DB::DB_VERSION = 6`
 
 ## Requirements
